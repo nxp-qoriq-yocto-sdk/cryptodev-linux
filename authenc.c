@@ -272,6 +272,84 @@ static int fill_caop_from_kcaop(struct kernel_crypt_auth_op *kcaop, struct fcryp
 	return 0;
 }
 
+/* compatibility code for 32bit userlands */
+#ifdef CONFIG_COMPAT
+
+static inline void
+compat_to_crypt_auth_op(struct compat_crypt_auth_op *compat,
+			struct crypt_auth_op *caop)
+{
+	caop->ses = compat->ses;
+	caop->op = compat->op;
+	caop->flags = compat->flags;
+	caop->len = compat->len;
+	caop->auth_len = compat->auth_len;
+	caop->tag_len = compat->tag_len;
+	caop->iv_len = compat->iv_len;
+
+	caop->auth_src = compat_ptr(compat->auth_src);
+	caop->src = compat_ptr(compat->src);
+	caop->dst = compat_ptr(compat->dst);
+	caop->tag = compat_ptr(compat->tag);
+	caop->iv = compat_ptr(compat->iv);
+}
+
+static inline void
+crypt_auth_op_to_compat(struct crypt_auth_op *caop,
+			struct compat_crypt_auth_op *compat)
+{
+	compat->ses = caop->ses;
+	compat->op = caop->op;
+	compat->flags = caop->flags;
+	compat->len = caop->len;
+	compat->auth_len = caop->auth_len;
+	compat->tag_len = caop->tag_len;
+	compat->iv_len = caop->iv_len;
+
+	compat->auth_src = ptr_to_compat(caop->auth_src);
+	compat->src = ptr_to_compat(caop->src);
+	compat->dst = ptr_to_compat(caop->dst);
+	compat->tag = ptr_to_compat(caop->tag);
+	compat->iv = ptr_to_compat(caop->iv);
+}
+
+int compat_kcaop_from_user(struct kernel_crypt_auth_op *kcaop,
+				struct fcrypt *fcr, void __user *arg)
+{
+	struct compat_crypt_auth_op compat_caop;
+
+	if (unlikely(copy_from_user(&compat_caop, arg, sizeof(compat_caop)))) {
+		dprintk(1, KERN_ERR, "Error in copying from userspace\n");
+		return -EFAULT;
+	}
+
+	compat_to_crypt_auth_op(&compat_caop, &kcaop->caop);
+
+	return fill_kcaop_from_caop(kcaop, fcr);
+}
+
+int compat_kcaop_to_user(struct kernel_crypt_auth_op *kcaop,
+				struct fcrypt *fcr, void __user *arg)
+{
+	int ret;
+	struct compat_crypt_auth_op compat_caop;
+
+	ret = fill_caop_from_kcaop(kcaop, fcr);
+	if (unlikely(ret)) {
+		dprintk(1, KERN_ERR, "fill_caop_from_kcaop\n");
+		return ret;
+	}
+
+	crypt_auth_op_to_compat(&kcaop->caop, &compat_caop);
+
+	if (unlikely(copy_to_user(arg, &compat_caop, sizeof(compat_caop)))) {
+		dprintk(1, KERN_ERR, "Error in copying to userspace\n");
+		return -EFAULT;
+	}
+	return 0;
+}
+
+#endif /* CONFIG_COMPAT */
 
 int kcaop_from_user(struct kernel_crypt_auth_op *kcaop,
 			struct fcrypt *fcr, void __user *arg)

@@ -998,6 +998,7 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 	struct session_op sop;
 	struct compat_session_op compat_sop;
 	struct kernel_crypt_op kcop;
+	struct kernel_crypt_auth_op kcaop;
 	int ret;
 
 	if (unlikely(!pcr))
@@ -1040,6 +1041,21 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 			return ret;
 
 		return compat_kcop_to_user(&kcop, fcr, arg);
+
+	case COMPAT_CIOCAUTHCRYPT:
+		if (unlikely(ret = compat_kcaop_from_user(&kcaop, fcr, arg))) {
+			dprintk(1, KERN_WARNING, "Error copying from user\n");
+			return ret;
+		}
+
+		ret = crypto_auth_run(fcr, &kcaop);
+		if (unlikely(ret)) {
+			dprintk(1, KERN_WARNING, "Error in crypto_auth_run\n");
+			return ret;
+		}
+
+		return compat_kcaop_to_user(&kcaop, fcr, arg);
+
 #ifdef ENABLE_ASYNC
 	case COMPAT_CIOCASYNCCRYPT:
 		if (unlikely(ret = compat_kcop_from_user(&kcop, fcr, arg)))
