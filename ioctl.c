@@ -108,10 +108,9 @@ void cryptodev_complete_asym(struct crypto_async_request *req, int err)
 		complete(&res->completion);
 	} else {
 		struct crypt_priv *pcr = pkc->priv;
-		unsigned long flags;
-		spin_lock_irqsave(&pcr->completion_lock, flags);
+		spin_lock_bh(&pcr->completion_lock);
 		list_add_tail(&pkc->list, &pcr->asym_completed_list);
-		spin_unlock_irqrestore(&pcr->completion_lock, flags);
+		spin_unlock_bh(&pcr->completion_lock);
 		/* wake for POLLIN */
 		wake_up_interruptible(&pcr->user_waiter);
 	}
@@ -958,7 +957,7 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 	case CIOCASYMFEAT:
 		return put_user(CRF_MOD_EXP_CRT |  CRF_MOD_EXP | CRF_DSA_SIGN |
 			CRF_DSA_VERIFY | CRF_DH_COMPUTE_KEY |
-			CRF_DSA_GENERATE_KEY, p);
+			CRF_DSA_GENERATE_KEY | CRF_DH_GENERATE_KEY, p);
 	case CRIOGET:
 		fd = clonefd(filp);
 		ret = put_user(fd, p);
@@ -997,7 +996,7 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 	case CIOCKEY:
 	{
 		struct cryptodev_pkc *pkc =
-			kzalloc(sizeof(struct cryptodev_pkc), GFP_KERNEL);
+			kmalloc(sizeof(struct cryptodev_pkc), GFP_KERNEL);
 
 		if (!pkc)
 			return -ENOMEM;
@@ -1053,7 +1052,7 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 	case CIOCASYMASYNCRYPT:
 	{
 		struct cryptodev_pkc *pkc =
-			kzalloc(sizeof(struct cryptodev_pkc), GFP_KERNEL);
+			kmalloc(sizeof(struct cryptodev_pkc), GFP_KERNEL);
 		ret = kop_from_user(&pkc->kop, arg);
 
 		if (unlikely(ret))
@@ -1070,13 +1069,12 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 	case CIOCASYMFETCHCOOKIE:
 	{
 		struct cryptodev_pkc *pkc;
-		unsigned long flags;
 		int i;
 		struct pkc_cookie_list_s cookie_list;
 
-		spin_lock_irqsave(&pcr->completion_lock, flags);
 		cookie_list.cookie_available = 0;
 		for (i = 0; i < MAX_COOKIES; i++) {
+			spin_lock_bh(&pcr->completion_lock);
 			if (!list_empty(&pcr->asym_completed_list)) {
 				/* Run a loop in the list for upto  elements
 				 and copy their response back */
@@ -1084,6 +1082,7 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 				 list_first_entry(&pcr->asym_completed_list,
 						struct cryptodev_pkc, list);
 				list_del(&pkc->list);
+				spin_unlock_bh(&pcr->completion_lock);
 				ret = crypto_async_fetch_asym(pkc);
 				if (!ret) {
 					cookie_list.cookie_available++;
@@ -1093,10 +1092,10 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 				}
 				kfree(pkc);
 			} else {
+				spin_unlock_bh(&pcr->completion_lock);
 				break;
 			}
 		}
-		spin_unlock_irqrestore(&pcr->completion_lock, flags);
 
 		/* Reflect the updated request to user-space */
 		if (cookie_list.cookie_available)
@@ -1386,14 +1385,13 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 	case COMPAT_CIOCASYMFETCHCOOKIE:
 	{
 		struct cryptodev_pkc *pkc;
-		unsigned long flags;
 		int i = 0;
 		struct compat_pkc_cookie_list_s cookie_list;
 
-		spin_lock_irqsave(&pcr->completion_lock, flags);
 		cookie_list.cookie_available = 0;
 
 		for (i = 0; i < MAX_COOKIES; i++) {
+			spin_lock_bh(&pcr->completion_lock);
 			if (!list_empty(&pcr->asym_completed_list)) {
 				/* Run a loop in the list for upto  elements
 				 and copy their response back */
@@ -1401,6 +1399,7 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 				 list_first_entry(&pcr->asym_completed_list,
 						struct cryptodev_pkc, list);
 				list_del(&pkc->list);
+				spin_unlock_bh(&pcr->completion_lock);
 				ret = crypto_async_fetch_asym(pkc);
 				if (!ret) {
 					cookie_list.cookie_available++;
@@ -1409,10 +1408,10 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 				}
 				kfree(pkc);
 			} else {
+				spin_unlock_bh(&pcr->completion_lock);
 				break;
 			}
 		}
-		spin_unlock_irqrestore(&pcr->completion_lock, flags);
 
 		/* Reflect the updated request to user-space */
 		if (cookie_list.cookie_available)

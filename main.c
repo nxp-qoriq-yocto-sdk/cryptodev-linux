@@ -215,7 +215,9 @@ int crypto_kop_dsasign(struct cryptodev_pkc *pkc)
 		pkc_req->type = DSA_SIGN;
 	}
 
-	buf = kzalloc(buf_size, GFP_DMA);
+	buf = kmalloc(buf_size, GFP_DMA);
+	if (!buf)
+		return -ENOMEM;
 
 	dsa_req->q = buf;
 	dsa_req->r = dsa_req->q + dsa_req->q_len;
@@ -298,7 +300,9 @@ int crypto_kop_dsaverify(struct cryptodev_pkc *pkc)
 		pkc_req->type = DSA_VERIFY;
 	}
 
-	buf = kzalloc(buf_size, GFP_DMA);
+	buf = kmalloc(buf_size, GFP_DMA);
+	if (!buf)
+		return -ENOMEM;
 
 	dsa_req->q = buf;
 	dsa_req->r = dsa_req->q + dsa_req->q_len;
@@ -378,7 +382,7 @@ int crypto_kop_keygen(struct cryptodev_pkc *pkc)
 		pkc_req->curve_type = cop->curve_type;
 	}
 
-	buf = kzalloc(buf_size, GFP_DMA);
+	buf = kmalloc(buf_size, GFP_DMA);
 	if (!buf)
 		return -ENOMEM;
 
@@ -390,25 +394,28 @@ int crypto_kop_keygen(struct cryptodev_pkc *pkc)
 	copy_from_user(key_req->q, cop->crk_param[0].crp_p, key_req->q_len);
 	copy_from_user(key_req->r, cop->crk_param[1].crp_p, key_req->r_len);
 	copy_from_user(key_req->g, cop->crk_param[2].crp_p, key_req->g_len);
-	if (cop->crk_iparams == 3) {
-		copy_from_user(key_req->pub_key, cop->crk_param[3].crp_p,
-			       key_req->pub_key_len);
-		copy_from_user(key_req->priv_key, cop->crk_param[4].crp_p,
-			       key_req->priv_key_len);
-	} else {
+	if (cop->crk_iparams == 4) {
 		key_req->ab = key_req->priv_key + key_req->priv_key_len;
 		copy_from_user(key_req->ab, cop->crk_param[3].crp_p,
 			       key_req->ab_len);
-		copy_from_user(key_req->pub_key, cop->crk_param[4].crp_p,
-			       key_req->pub_key_len);
-		copy_from_user(key_req->priv_key, cop->crk_param[5].crp_p,
-			       key_req->priv_key_len);
 	}
 
 	rc = cryptodev_pkc_offload(pkc);
 	if (pkc->type == SYNCHRONOUS) {
 		if (rc)
 			goto err;
+
+		if (cop->crk_iparams == 4) {
+			copy_to_user(cop->crk_param[4].crp_p, key_req->pub_key,
+				     key_req->pub_key_len);
+			copy_to_user(cop->crk_param[5].crp_p, key_req->priv_key,
+				     key_req->priv_key_len);
+		} else {
+			copy_to_user(cop->crk_param[3].crp_p, key_req->pub_key,
+				     key_req->pub_key_len);
+			copy_to_user(cop->crk_param[4].crp_p,
+				     key_req->priv_key, key_req->priv_key_len);
+		}
 	} else {
 		if (rc != -EINPROGRESS && !rc)
 			goto err;
@@ -447,7 +454,9 @@ int crypto_kop_dh_key(struct cryptodev_pkc *pkc)
 		pkc_req->type = DH_COMPUTE_KEY;
 	}
 	buf_size += dh_req->z_len;
-	buf = kzalloc(buf_size, GFP_DMA);
+	buf = kmalloc(buf_size, GFP_DMA);
+	if (!buf)
+		return -ENOMEM;
 	dh_req->q = buf;
 	dh_req->s = dh_req->q + dh_req->q_len;
 	dh_req->pub_key = dh_req->s + dh_req->s_len;
@@ -508,9 +517,11 @@ int crypto_modexp_crt(struct cryptodev_pkc *pkc)
 	rsa_req->dq_len = (cop->crk_param[4].crp_nbits + 7)/8;
 	rsa_req->c_len = (cop->crk_param[5].crp_nbits + 7)/8;
 	rsa_req->f_len = (cop->crk_param[6].crp_nbits + 7)/8;
-	buf = kzalloc(rsa_req->p_len + rsa_req->q_len + rsa_req->f_len +
+	buf = kmalloc(rsa_req->p_len + rsa_req->q_len + rsa_req->f_len +
 		      rsa_req->dp_len + rsa_req->dp_len + rsa_req->c_len +
 		      rsa_req->g_len, GFP_DMA);
+	if (!buf)
+		return -ENOMEM;
 	rsa_req->p = buf;
 	rsa_req->q = rsa_req->p + rsa_req->p_len;
 	rsa_req->g = rsa_req->q + rsa_req->q_len;
@@ -563,7 +574,7 @@ int crypto_bn_modexp(struct cryptodev_pkc *pkc)
 	rsa_req->e_len = (cop->crk_param[1].crp_nbits + 7)/8;
 	rsa_req->n_len = (cop->crk_param[2].crp_nbits + 7)/8;
 	rsa_req->g_len = (cop->crk_param[3].crp_nbits + 7)/8;
-	buf = kzalloc(rsa_req->f_len + rsa_req->e_len + rsa_req->n_len
+	buf = kmalloc(rsa_req->f_len + rsa_req->e_len + rsa_req->n_len
 			+ rsa_req->g_len, GFP_DMA);
 	if (!buf)
 		return -ENOMEM;
