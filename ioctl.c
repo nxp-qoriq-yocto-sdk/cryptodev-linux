@@ -4,6 +4,7 @@
  * Copyright (c) 2004 Michal Ludvig <mludvig@logix.net.nz>, SuSE Labs
  * Copyright (c) 2009,2010,2011 Nikos Mavrogiannopoulos <nmav@gnutls.org>
  * Copyright (c) 2010 Phil Sutter
+ * Copyright 2012 Freescale Semiconductor, Inc.
  *
  * This file is part of linux cryptodev.
  *
@@ -89,7 +90,36 @@ struct crypt_priv {
 	int itemcount;
 	struct work_struct cryptask;
 	wait_queue_head_t user_waiter;
+	/* List of pending cryptodev_pkc asym requests */
+	struct list_head asym_completed_list;
+	/* For addition/removal of entry in pending list of asymmetric request*/
+	spinlock_t completion_lock;
 };
+
+/* Asymmetric request Completion handler */
+void cryptodev_complete_asym(struct crypto_async_request *req, int err)
+{
+	struct cryptodev_pkc *pkc = req->data;
+	struct cryptodev_result *res = &pkc->result;
+
+	crypto_free_pkc(pkc->s);
+	res->err = err;
+	if (pkc->type == SYNCHRONOUS) {
+		if (err == -EINPROGRESS)
+			return;
+		complete(&res->completion);
+	} else {
+		struct crypt_priv *pcr = pkc->priv;
+		unsigned long flags;
+		spin_lock_irqsave(&pcr->completion_lock, flags);
+		list_add_tail(&pkc->list, &pcr->asym_completed_list);
+		spin_unlock_irqrestore(&pcr->completion_lock, flags);
+		/* wake for POLLIN */
+		wake_up_interruptible(&pcr->user_waiter);
+	}
+
+	kfree(req);
+}
 
 #define FILL_SG(sg, ptr, len)					\
 	do {							\
@@ -472,7 +502,8 @@ cryptodev_open(struct inode *inode, struct file *filp)
 	INIT_LIST_HEAD(&pcr->free.list);
 	INIT_LIST_HEAD(&pcr->todo.list);
 	INIT_LIST_HEAD(&pcr->done.list);
-
+	INIT_LIST_HEAD(&pcr->asym_completed_list);
+	spin_lock_init(&pcr->completion_lock);
 	INIT_WORK(&pcr->cryptask, cryptask_routine);
 
 	init_waitqueue_head(&pcr->user_waiter);
@@ -639,6 +670,79 @@ static int crypto_async_fetch(struct crypt_priv *pcr,
 }
 #endif
 
+/* get the first asym cipher completed job from the "done" queue
+ *
+ * returns:
+ * -EBUSY if no completed jobs are ready (yet)
+ * the return value otherwise */
+static int crypto_async_fetch_asym(struct cryptodev_pkc *pkc)
+{
+	int ret = 0;
+	struct kernel_crypt_kop *kop = &pkc->kop;
+	struct crypt_kop *ckop = &kop->kop;
+	struct pkc_request *pkc_req = &pkc->req;
+
+	switch (ckop->crk_op) {
+	case CRK_MOD_EXP:
+	{
+		struct rsa_pub_req_s *rsa_req = &pkc_req->req_u.rsa_pub_req;
+		copy_to_user(ckop->crk_param[3].crp_p, rsa_req->g,
+			     rsa_req->g_len);
+	}
+	break;
+	case CRK_MOD_EXP_CRT:
+	{
+		struct rsa_priv_frm3_req_s *rsa_req =
+			 &pkc_req->req_u.rsa_priv_f3;
+		copy_to_user(ckop->crk_param[6].crp_p,
+			     rsa_req->f, rsa_req->f_len);
+	}
+	break;
+	case CRK_DSA_SIGN:
+	{
+		struct dsa_sign_req_s *dsa_req = &pkc_req->req_u.dsa_sign;
+
+		if (pkc_req->type == ECDSA_SIGN) {
+			copy_to_user(ckop->crk_param[6].crp_p,
+				     dsa_req->c, dsa_req->d_len);
+			copy_to_user(ckop->crk_param[7].crp_p,
+				     dsa_req->d, dsa_req->d_len);
+		} else {
+			copy_to_user(ckop->crk_param[5].crp_p,
+				     dsa_req->c, dsa_req->d_len);
+			copy_to_user(ckop->crk_param[6].crp_p,
+				     dsa_req->d, dsa_req->d_len);
+		}
+	}
+	break;
+	case CRK_DSA_VERIFY:
+		break;
+	case CRK_DH_COMPUTE_KEY:
+	{
+		struct dh_key_req_s *dh_req = &pkc_req->req_u.dh_req;
+		if (pkc_req->type == ECDH_COMPUTE_KEY)
+			copy_to_user(ckop->crk_param[4].crp_p,
+				     dh_req->z, dh_req->z_len);
+		else
+			copy_to_user(ckop->crk_param[3].crp_p,
+				     dh_req->z, dh_req->z_len);
+	}
+	break;
+	default:
+		ret = -EINVAL;
+	}
+	kfree(pkc->cookie);
+	return ret;
+}
+
+/* this function has to be called from process context */
+static int fill_kop_from_cop(struct kernel_crypt_kop *kop)
+{
+	kop->task = current;
+	kop->mm = current->mm;
+	return 0;
+}
+
 /* this function has to be called from process context */
 static int fill_kcop_from_cop(struct kernel_crypt_op *kcop, struct fcrypt *fcr)
 {
@@ -662,11 +766,8 @@ static int fill_kcop_from_cop(struct kernel_crypt_op *kcop, struct fcrypt *fcr)
 
 	if (cop->iv) {
 		rc = copy_from_user(kcop->iv, cop->iv, kcop->ivlen);
-		if (unlikely(rc)) {
-			derr(1, "error copying IV (%d bytes), copy_from_user returned %d for address %p",
-					kcop->ivlen, rc, cop->iv);
+		if (unlikely(rc))
 			return -EFAULT;
-		}
 	}
 
 	return 0;
@@ -688,6 +789,25 @@ static int fill_cop_from_kcop(struct kernel_crypt_op *kcop, struct fcrypt *fcr)
 				kcop->iv, kcop->ivlen);
 		if (unlikely(ret))
 			return -EFAULT;
+	}
+	return 0;
+}
+
+static int kop_from_user(struct kernel_crypt_kop *kop,
+			void __user *arg)
+{
+	if (unlikely(copy_from_user(&kop->kop, arg, sizeof(kop->kop))))
+		return -EFAULT;
+
+	return fill_kop_from_cop(kop);
+}
+
+static int kop_to_user(struct kernel_crypt_kop *kop,
+			void __user *arg)
+{
+	if (unlikely(copy_to_user(arg, &kop->kop, sizeof(kop->kop)))) {
+		dprintk(1, KERN_ERR, "Cannot copy to userspace\n");
+		return -EFAULT;
 	}
 	return 0;
 }
@@ -821,7 +941,8 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 
 	switch (cmd) {
 	case CIOCASYMFEAT:
-		return put_user(0, p);
+		return put_user(CRF_MOD_EXP_CRT |  CRF_MOD_EXP |
+			CRF_DSA_SIGN | CRF_DSA_VERIFY | CRF_DH_COMPUTE_KEY, p);
 	case CRIOGET:
 		fd = clonefd(filp);
 		ret = put_user(fd, p);
@@ -857,6 +978,24 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 		if (unlikely(ret))
 			return ret;
 		return copy_to_user(arg, &siop, sizeof(siop));
+	case CIOCKEY:
+	{
+		struct cryptodev_pkc *pkc =
+			kzalloc(sizeof(struct cryptodev_pkc), GFP_KERNEL);
+
+		if (!pkc)
+			return -ENOMEM;
+
+		ret = kop_from_user(&pkc->kop, arg);
+		if (unlikely(ret)) {
+			kfree(pkc);
+			return ret;
+		}
+		pkc->type = SYNCHRONOUS;
+		ret = crypto_run_asym(pkc);
+		kfree(pkc);
+	}
+	return ret;
 	case CIOCCRYPT:
 		if (unlikely(ret = kcop_from_user(&kcop, fcr, arg))) {
 			dwarning(1, "Error copying from user");
@@ -895,6 +1034,45 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 
 		return kcop_to_user(&kcop, fcr, arg);
 #endif
+	case CIOCASYMASYNCRYPT:
+	{
+		struct cryptodev_pkc *pkc =
+			kzalloc(sizeof(struct cryptodev_pkc), GFP_KERNEL);
+		ret = kop_from_user(&pkc->kop, arg);
+
+		if (unlikely(ret))
+			return -EINVAL;
+
+		/* Store associated FD priv data with asymmetric request */
+		pkc->priv = pcr;
+		pkc->type = ASYNCHRONOUS;
+		ret = crypto_run_asym(pkc);
+		if (ret == -EINPROGRESS)
+			ret = 0;
+	}
+	return ret;
+	case CIOCASYMASYNFETCH:
+	{
+		struct cryptodev_pkc *pkc;
+		unsigned long flags;
+
+		spin_lock_irqsave(&pcr->completion_lock, flags);
+		if (list_empty(&pcr->asym_completed_list)) {
+			spin_unlock_irqrestore(&pcr->completion_lock, flags);
+			return -ENOMEM;
+		}
+		pkc = list_first_entry(&pcr->asym_completed_list,
+			struct cryptodev_pkc, list);
+		list_del(&pkc->list);
+		spin_unlock_irqrestore(&pcr->completion_lock, flags);
+		ret = crypto_async_fetch_asym(pkc);
+
+		/* Reflect the updated request to user-space */
+		if (!ret)
+			kop_to_user(&pkc->kop, arg);
+		kfree(pkc);
+	}
+	return ret;
 	default:
 		return -EINVAL;
 	}
@@ -1083,9 +1261,11 @@ static unsigned int cryptodev_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &pcr->user_waiter, wait);
 
-	if (!list_empty_careful(&pcr->done.list))
+	if (!list_empty_careful(&pcr->done.list) ||
+	    !list_empty_careful(&pcr->asym_completed_list))
 		ret |= POLLIN | POLLRDNORM;
-	if (!list_empty_careful(&pcr->free.list) || pcr->itemcount < MAX_COP_RINGSIZE)
+	if (!list_empty_careful(&pcr->free.list) ||
+	    pcr->itemcount < MAX_COP_RINGSIZE)
 		ret |= POLLOUT | POLLWRNORM;
 
 	return ret;

@@ -1,6 +1,10 @@
-/* This is a source compatible implementation with the original API of
+/*
+ * Copyright 2012 Freescale Semiconductor, Inc.
+ *
+ * This is a source compatible implementation with the original API of
  * cryptodev by Angelos D. Keromytis, found at openbsd cryptodev.h.
- * Placed under public domain */
+ * Placed under public domain
+ */
 
 #ifndef L_CRYPTODEV_H
 #define L_CRYPTODEV_H
@@ -245,6 +249,9 @@ struct crypt_kop {
 	__u16	crk_oparams;
 	__u32	crk_pad1;
 	struct crparam	crk_param[CRK_MAXPARAM];
+	enum curve_t curve_type; /* 0 == Discrete Log,
+				1 = EC_PRIME, 2 = EC_BINARY */
+	void *cookie;
 };
 
 enum cryptodev_crk_op_t {
@@ -289,5 +296,7 @@ enum cryptodev_crk_op_t {
  */
 #define CIOCASYNCCRYPT    _IOW('c', 110, struct crypt_op)
 #define CIOCASYNCFETCH    _IOR('c', 111, struct crypt_op)
-
+/* additional ioctls for asynchronous  operation for asymmetric ciphers*/
+#define CIOCASYMASYNCRYPT    _IOW('c', 112, struct crypt_kop)
+#define CIOCASYMASYNFETCH    _IOR('c', 113, struct crypt_kop)
 #endif /* L_CRYPTODEV_H */

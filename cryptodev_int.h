@@ -1,4 +1,6 @@
-/* cipher stuff */
+/* cipher stuff
+ * Copyright 2012 Freescale Semiconductor, Inc.
+ */
 #ifndef CRYPTODEV_INT_H
 # define CRYPTODEV_INT_H
 
@@ -112,6 +114,14 @@ struct compat_crypt_auth_op {
 
 #endif /* CONFIG_COMPAT */
 
+/* kernel-internal extension to struct crypt_kop */
+struct kernel_crypt_kop {
+	struct crypt_kop kop;
+
+	struct task_struct *task;
+	struct mm_struct *mm;
+};
+
 /* kernel-internal extension to struct crypt_op */
 struct kernel_crypt_op {
 	struct crypt_op cop;
@@ -156,6 +166,14 @@ int crypto_auth_run(struct fcrypt *fcr, struct kernel_crypt_auth_op *kcaop);
 int crypto_run(struct fcrypt *fcr, struct kernel_crypt_op *kcop);
 
 #include <cryptlib.h>
+
+/* Cryptodev Key operation handler */
+int crypto_bn_modexp(struct cryptodev_pkc *);
+int crypto_modexp_crt(struct cryptodev_pkc *);
+int crypto_kop_dsasign(struct cryptodev_pkc *);
+int crypto_kop_dsaverify(struct cryptodev_pkc *);
+int crypto_run_asym(struct cryptodev_pkc *);
+void cryptodev_complete_asym(struct crypto_async_request *, int);
 
 /* other internal structs */
 struct csession {
