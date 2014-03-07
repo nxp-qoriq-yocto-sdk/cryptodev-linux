@@ -254,6 +254,14 @@ struct crypt_kop {
 	void *cookie;
 };
 
+#define MAX_COOKIES 4
+
+struct pkc_cookie_list_s {
+	int cookie_available;
+	void *cookie[MAX_COOKIES];
+	int status[MAX_COOKIES];
+};
+
 enum cryptodev_crk_op_t {
 	CRK_MOD_EXP = 0,
 	CRK_MOD_EXP_CRT = 1,
@@ -298,5 +306,5 @@ enum cryptodev_crk_op_t {
 #define CIOCASYNCFETCH    _IOR('c', 111, struct crypt_op)
 /* additional ioctls for asynchronous  operation for asymmetric ciphers*/
 #define CIOCASYMASYNCRYPT    _IOW('c', 112, struct crypt_kop)
-#define CIOCASYMASYNFETCH    _IOR('c', 113, struct crypt_kop)
+#define CIOCASYMFETCHCOOKIE    _IOR('c', 113, struct pkc_cookie_list_s)
 #endif /* L_CRYPTODEV_H */

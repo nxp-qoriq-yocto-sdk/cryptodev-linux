@@ -105,8 +105,6 @@ void cryptodev_complete_asym(struct crypto_async_request *req, int err)
 	crypto_free_pkc(pkc->s);
 	res->err = err;
 	if (pkc->type == SYNCHRONOUS) {
-		if (err == -EINPROGRESS)
-			return;
 		complete(&res->completion);
 	} else {
 		struct crypt_priv *pcr = pkc->priv;
@@ -1051,26 +1049,41 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 			ret = 0;
 	}
 	return ret;
-	case CIOCASYMASYNFETCH:
+	case CIOCASYMFETCHCOOKIE:
 	{
 		struct cryptodev_pkc *pkc;
 		unsigned long flags;
+		int i;
+		struct pkc_cookie_list_s cookie_list;
 
 		spin_lock_irqsave(&pcr->completion_lock, flags);
-		if (list_empty(&pcr->asym_completed_list)) {
-			spin_unlock_irqrestore(&pcr->completion_lock, flags);
-			return -ENOMEM;
+		cookie_list.cookie_available = 0;
+		for (i = 0; i < MAX_COOKIES; i++) {
+			if (!list_empty(&pcr->asym_completed_list)) {
+				/* Run a loop in the list for upto  elements
+				 and copy their response back */
+				pkc =
+				 list_first_entry(&pcr->asym_completed_list,
+						struct cryptodev_pkc, list);
+				list_del(&pkc->list);
+				ret = crypto_async_fetch_asym(pkc);
+				if (!ret) {
+					cookie_list.cookie_available++;
+					cookie_list.cookie[i] =
+						pkc->kop.kop.cookie;
+					cookie_list.status[i] = pkc->result.err;
+				}
+				kfree(pkc);
+			} else {
+				break;
+			}
 		}
-		pkc = list_first_entry(&pcr->asym_completed_list,
-			struct cryptodev_pkc, list);
-		list_del(&pkc->list);
 		spin_unlock_irqrestore(&pcr->completion_lock, flags);
-		ret = crypto_async_fetch_asym(pkc);
 
 		/* Reflect the updated request to user-space */
-		if (!ret)
-			kop_to_user(&pkc->kop, arg);
-		kfree(pkc);
+		if (cookie_list.cookie_available)
+			copy_to_user(arg, &cookie_list,
+				     sizeof(struct pkc_cookie_list_s));
 	}
 	return ret;
 	default:
@@ -1345,26 +1358,41 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 			ret = 0;
 	}
 	return ret;
-	case COMPAT_CIOCASYMASYNFETCH:
+	case COMPAT_CIOCASYMFETCHCOOKIE:
 	{
 		struct cryptodev_pkc *pkc;
 		unsigned long flags;
+		int i = 0;
+		struct compat_pkc_cookie_list_s cookie_list;
 
 		spin_lock_irqsave(&pcr->completion_lock, flags);
-		if (list_empty(&pcr->asym_completed_list)) {
-			spin_unlock_irqrestore(&pcr->completion_lock, flags);
-			return -ENOMEM;
+		cookie_list.cookie_available = 0;
+
+		for (i = 0; i < MAX_COOKIES; i++) {
+			if (!list_empty(&pcr->asym_completed_list)) {
+				/* Run a loop in the list for upto  elements
+				 and copy their response back */
+				pkc =
+				 list_first_entry(&pcr->asym_completed_list,
+						struct cryptodev_pkc, list);
+				list_del(&pkc->list);
+				ret = crypto_async_fetch_asym(pkc);
+				if (!ret) {
+					cookie_list.cookie_available++;
+					cookie_list.cookie[i] =
+						 pkc->kop.kop.cookie;
+				}
+				kfree(pkc);
+			} else {
+				break;
+			}
 		}
-		pkc = list_first_entry(&pcr->asym_completed_list,
-			 struct cryptodev_pkc, list);
-		list_del(&pkc->list);
 		spin_unlock_irqrestore(&pcr->completion_lock, flags);
-		ret = crypto_async_fetch_asym(pkc);
 
 		/* Reflect the updated request to user-space */
-		if (!ret)
-			compat_kop_to_user(&pkc->kop, arg);
-		kfree(pkc);
+		if (cookie_list.cookie_available)
+			copy_to_user(arg, &cookie_list,
+				     sizeof(struct compat_pkc_cookie_list_s));
 	}
 	return ret;
 	default:

@@ -93,6 +93,12 @@ struct compat_crypt_kop {
 	compat_uptr_t cookie;
 };
 
+struct compat_pkc_cookie_list_s {
+	int cookie_available;
+	compat_uptr_t cookie[MAX_COOKIES];
+	int status[MAX_COOKIES];
+};
+
  /* input of CIOCAUTHCRYPT */
 struct compat_crypt_auth_op {
 	uint32_t	ses;		/* session identifier */
@@ -126,11 +132,13 @@ struct compat_crypt_auth_op {
 /* compat ioctls, defined for the above structs */
 #define COMPAT_CIOCGSESSION    _IOWR('c', 102, struct compat_session_op)
 #define COMPAT_CIOCCRYPT       _IOWR('c', 104, struct compat_crypt_op)
+#define COMPAT_CIOCKEY    _IOW('c', 105, struct compat_crypt_kop)
 #define COMPAT_CIOCASYNCCRYPT  _IOW('c', 107, struct compat_crypt_op)
 #define COMPAT_CIOCASYNCFETCH  _IOR('c', 108, struct compat_crypt_op)
 #define COMPAT_CIOCAUTHCRYPT   _IOWR('c', 109, struct compat_crypt_auth_op)
 #define COMPAT_CIOCASYMASYNCRYPT    _IOW('c', 110, struct compat_crypt_kop)
-#define COMPAT_CIOCASYMASYNFETCH    _IOR('c', 111, struct compat_crypt_kop)
+#define COMPAT_CIOCASYMFETCHCOOKIE    _IOR('c', 111, \
+				struct compat_pkc_cookie_list_s)
 
 #endif /* CONFIG_COMPAT */
 

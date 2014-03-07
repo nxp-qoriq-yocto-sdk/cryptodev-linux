@@ -113,7 +113,12 @@ struct cryptodev_pkc {
 	struct pkc_request req; /* PKC request structure allocated
 				 from CryptoAPI */
 	enum offload_type type; /* Synchronous Vs Asynchronous request */
-	void *cookie; /*Additional opaque cookie to be used in future */
+	/*
+	 * cookie used for transfering tranparent information from async
+	 * submission to async fetch. Currently some dynamic allocated
+	 * buffers are maintained which will be freed later during fetch
+	 */
+	void *cookie;
 	struct crypt_priv *priv;
 };
 
