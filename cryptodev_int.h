@@ -75,6 +75,24 @@ struct compat_crypt_op {
 	compat_uptr_t	iv;/* initialization vector for encryption operations */
 };
 
+/* input of CIOCKEY */
+struct compat_crparam {
+	compat_uptr_t	crp_p;
+	uint32_t	crp_nbits;
+};
+
+struct compat_crypt_kop {
+	uint32_t	crk_op;		/* cryptodev_crk_ot_t */
+	uint32_t	crk_status;
+	uint16_t	crk_iparams;
+	uint16_t	crk_oparams;
+	uint32_t	crk_pad1;
+	struct compat_crparam	crk_param[CRK_MAXPARAM];
+	enum curve_t curve_type; /* 0 == Discrete Log, 1 = EC_PRIME,
+				 2 = EC_BINARY */
+	compat_uptr_t cookie;
+};
+
  /* input of CIOCAUTHCRYPT */
 struct compat_crypt_auth_op {
 	uint32_t	ses;		/* session identifier */
@@ -111,6 +129,8 @@ struct compat_crypt_auth_op {
 #define COMPAT_CIOCASYNCCRYPT  _IOW('c', 107, struct compat_crypt_op)
 #define COMPAT_CIOCASYNCFETCH  _IOR('c', 108, struct compat_crypt_op)
 #define COMPAT_CIOCAUTHCRYPT   _IOWR('c', 109, struct compat_crypt_auth_op)
+#define COMPAT_CIOCASYMASYNCRYPT    _IOW('c', 110, struct compat_crypt_kop)
+#define COMPAT_CIOCASYMASYNFETCH    _IOR('c', 111, struct compat_crypt_kop)
 
 #endif /* CONFIG_COMPAT */
 

@@ -1081,6 +1081,68 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 /* compatibility code for 32bit userlands */
 #ifdef CONFIG_COMPAT
 
+static inline void compat_to_crypt_kop(struct compat_crypt_kop *compat,
+		 struct crypt_kop *kop)
+{
+	int i;
+	kop->crk_op      = compat->crk_op;
+	kop->crk_status  = compat->crk_status;
+	kop->crk_iparams = compat->crk_iparams;
+	kop->crk_oparams = compat->crk_oparams;
+
+	for (i = 0; i < CRK_MAXPARAM; i++) {
+		kop->crk_param[i].crp_p =
+			compat_ptr(compat->crk_param[i].crp_p);
+		kop->crk_param[i].crp_nbits = compat->crk_param[i].crp_nbits;
+	}
+
+	kop->curve_type = compat->curve_type;
+	kop->cookie = compat->cookie;
+}
+
+static int compat_kop_from_user(struct kernel_crypt_kop *kop,
+	void __user *arg)
+{
+	struct compat_crypt_kop compat_kop;
+
+	if (unlikely(copy_from_user(&compat_kop, arg, sizeof(compat_kop))))
+		return -EFAULT;
+
+	compat_to_crypt_kop(&compat_kop, &kop->kop);
+	return fill_kop_from_cop(kop);
+}
+
+static inline void crypt_kop_to_compat(struct crypt_kop *kop,
+				 struct compat_crypt_kop *compat)
+{
+	int i;
+
+	compat->crk_op      = kop->crk_op;
+	compat->crk_status  = kop->crk_status;
+	compat->crk_iparams = kop->crk_iparams;
+	compat->crk_oparams = kop->crk_oparams;
+
+	for (i = 0; i < CRK_MAXPARAM; i++) {
+		compat->crk_param[i].crp_p =
+			 ptr_to_compat(kop->crk_param[i].crp_p);
+		compat->crk_param[i].crp_nbits = kop->crk_param[i].crp_nbits;
+	}
+	compat->cookie = kop->cookie;
+	compat->curve_type = kop->curve_type;
+}
+
+static int compat_kop_to_user(struct kernel_crypt_kop *kop, void __user *arg)
+{
+	struct compat_crypt_kop compat_kop;
+
+	crypt_kop_to_compat(&kop->kop, &compat_kop);
+	if (unlikely(copy_to_user(arg, &compat_kop, sizeof(compat_kop)))) {
+		dprintk(1, KERN_ERR, "Cannot copy to userspace\n");
+		return -EFAULT;
+	}
+	return 0;
+}
+
 static inline void
 compat_to_session_op(struct compat_session_op *compat, struct session_op *sop)
 {
@@ -1208,7 +1270,26 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 			return -EFAULT;
 		}
 		return ret;
+	case COMPAT_CIOCKEY:
+	{
+		struct cryptodev_pkc *pkc =
+			 kzalloc(sizeof(struct cryptodev_pkc), GFP_KERNEL);
 
+		if (!pkc)
+			return -ENOMEM;
+
+		ret = compat_kop_from_user(&pkc->kop, arg);
+
+		if (unlikely(ret)) {
+			kfree(pkc);
+			return ret;
+		}
+
+		pkc->type = SYNCHRONOUS;
+		ret = crypto_run_asym(pkc);
+		kfree(pkc);
+	}
+	return ret;
 	case COMPAT_CIOCCRYPT:
 		ret = compat_kcop_from_user(&kcop, fcr, arg);
 		if (unlikely(ret))
@@ -1247,6 +1328,45 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 
 		return compat_kcop_to_user(&kcop, fcr, arg);
 #endif
+	case COMPAT_CIOCASYMASYNCRYPT:
+	{
+		struct cryptodev_pkc *pkc =
+			kzalloc(sizeof(struct cryptodev_pkc), GFP_KERNEL);
+
+		ret = compat_kop_from_user(&pkc->kop, arg);
+		if (unlikely(ret))
+			return -EINVAL;
+
+		/* Store associated FD priv data with asymmetric request */
+		pkc->priv = pcr;
+		pkc->type = ASYNCHRONOUS;
+		ret = crypto_run_asym(pkc);
+		if (ret == -EINPROGRESS)
+			ret = 0;
+	}
+	return ret;
+	case COMPAT_CIOCASYMASYNFETCH:
+	{
+		struct cryptodev_pkc *pkc;
+		unsigned long flags;
+
+		spin_lock_irqsave(&pcr->completion_lock, flags);
+		if (list_empty(&pcr->asym_completed_list)) {
+			spin_unlock_irqrestore(&pcr->completion_lock, flags);
+			return -ENOMEM;
+		}
+		pkc = list_first_entry(&pcr->asym_completed_list,
+			 struct cryptodev_pkc, list);
+		list_del(&pkc->list);
+		spin_unlock_irqrestore(&pcr->completion_lock, flags);
+		ret = crypto_async_fetch_asym(pkc);
+
+		/* Reflect the updated request to user-space */
+		if (!ret)
+			compat_kop_to_user(&pkc->kop, arg);
+		kfree(pkc);
+	}
+	return ret;
 	default:
 		return -EINVAL;
 	}
