@@ -268,6 +268,8 @@ enum cryptodev_crk_op_t {
 	CRK_DSA_SIGN = 2,
 	CRK_DSA_VERIFY = 3,
 	CRK_DH_COMPUTE_KEY = 4,
+	CRK_DSA_GENERATE_KEY = 5,
+	CRK_DH_GENERATE_KEY = 6,
 	CRK_ALGORITHM_ALL
 };
 
@@ -280,7 +282,8 @@ enum cryptodev_crk_op_t {
 #define CRF_DSA_SIGN		(1 << CRK_DSA_SIGN)
 #define CRF_DSA_VERIFY		(1 << CRK_DSA_VERIFY)
 #define CRF_DH_COMPUTE_KEY	(1 << CRK_DH_COMPUTE_KEY)
-
+#define CRF_DSA_GENERATE_KEY	(1 << CRK_DSA_GENERATE_KEY)
+#define CRF_DH_GENERATE_KEY	(1 << CRK_DH_GENERATE_KEY)
 
 /* ioctl's. Compatible with old linux cryptodev.h
  */

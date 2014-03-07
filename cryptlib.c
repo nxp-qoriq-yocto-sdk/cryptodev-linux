@@ -452,6 +452,8 @@ int cryptodev_pkc_offload(struct cryptodev_pkc  *pkc)
 	case DSA_VERIFY:
 	case ECDSA_SIGN:
 	case ECDSA_VERIFY:
+	case DLC_KEYGEN:
+	case ECC_KEYGEN:
 		pkc->s = crypto_alloc_pkc("pkc(dsa)",
 			 CRYPTO_ALG_TYPE_PKC_DSA, 0);
 		break;

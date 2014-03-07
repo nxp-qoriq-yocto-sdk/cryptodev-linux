@@ -726,6 +726,23 @@ static int crypto_async_fetch_asym(struct cryptodev_pkc *pkc)
 				     dh_req->z, dh_req->z_len);
 	}
 	break;
+	case CRK_DSA_GENERATE_KEY:
+	case CRK_DH_GENERATE_KEY:
+	{
+		struct keygen_req_s *key_req = &pkc_req->req_u.keygen;
+
+		if (pkc_req->type == ECC_KEYGEN) {
+			copy_to_user(ckop->crk_param[4].crp_p, key_req->pub_key,
+				     key_req->pub_key_len);
+			copy_to_user(ckop->crk_param[5].crp_p,
+				     key_req->priv_key, key_req->priv_key_len);
+		} else {
+			copy_to_user(ckop->crk_param[3].crp_p,
+				     key_req->pub_key, key_req->pub_key_len);
+			copy_to_user(ckop->crk_param[4].crp_p,
+				     key_req->priv_key, key_req->priv_key_len);
+		}
+	}
 	default:
 		ret = -EINVAL;
 	}
@@ -939,8 +956,9 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 
 	switch (cmd) {
 	case CIOCASYMFEAT:
-		return put_user(CRF_MOD_EXP_CRT |  CRF_MOD_EXP |
-			CRF_DSA_SIGN | CRF_DSA_VERIFY | CRF_DH_COMPUTE_KEY, p);
+		return put_user(CRF_MOD_EXP_CRT |  CRF_MOD_EXP | CRF_DSA_SIGN |
+			CRF_DSA_VERIFY | CRF_DH_COMPUTE_KEY |
+			CRF_DSA_GENERATE_KEY, p);
 	case CRIOGET:
 		fd = clonefd(filp);
 		ret = put_user(fd, p);
@@ -1084,7 +1102,14 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 		if (cookie_list.cookie_available)
 			copy_to_user(arg, &cookie_list,
 				     sizeof(struct pkc_cookie_list_s));
+		else {
+			struct pkc_cookie_list_s *user_ck_list = (void *)arg;
+
+			put_user(0, &(user_ck_list->cookie_available));
+		}
+		ret = cookie_list.cookie_available;
 	}
+
 	return ret;
 	default:
 		return -EINVAL;
