@@ -270,6 +270,7 @@ enum cryptodev_crk_op_t {
 	CRK_DH_COMPUTE_KEY = 4,
 	CRK_DSA_GENERATE_KEY = 5,
 	CRK_DH_GENERATE_KEY = 6,
+	CRK_RSA_GENERATE_KEY = 7,
 	CRK_ALGORITHM_ALL
 };
 
@@ -279,6 +280,7 @@ enum cryptodev_crk_op_t {
  */
 #define CRF_MOD_EXP		(1 << CRK_MOD_EXP)
 #define CRF_MOD_EXP_CRT		(1 << CRK_MOD_EXP_CRT)
+#define CRF_RSA_GENERATE_KEY	(1 << CRK_RSA_GENERATE_KEY)
 #define CRF_DSA_SIGN		(1 << CRK_DSA_SIGN)
 #define CRF_DSA_VERIFY		(1 << CRK_DSA_VERIFY)
 #define CRF_DH_COMPUTE_KEY	(1 << CRK_DH_COMPUTE_KEY)

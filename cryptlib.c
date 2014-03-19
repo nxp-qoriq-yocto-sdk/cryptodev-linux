@@ -441,6 +441,7 @@ int cryptodev_pkc_offload(struct cryptodev_pkc  *pkc)
 	struct pkc_request *pkc_req = &pkc->req, *pkc_requested;
 
 	switch (pkc_req->type) {
+	case RSA_KEYGEN:
 	case RSA_PUB:
 	case RSA_PRIV_FORM1:
 	case RSA_PRIV_FORM2:

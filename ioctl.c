@@ -957,7 +957,8 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 	case CIOCASYMFEAT:
 		return put_user(CRF_MOD_EXP_CRT |  CRF_MOD_EXP | CRF_DSA_SIGN |
 			CRF_DSA_VERIFY | CRF_DH_COMPUTE_KEY |
-			CRF_DSA_GENERATE_KEY | CRF_DH_GENERATE_KEY, p);
+			CRF_DSA_GENERATE_KEY | CRF_DH_GENERATE_KEY |
+			CRF_RSA_GENERATE_KEY, p);
 	case CRIOGET:
 		fd = clonefd(filp);
 		ret = put_user(fd, p);

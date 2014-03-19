@@ -346,6 +346,82 @@ err:
 	return rc;
 }
 
+int crypto_kop_rsa_keygen(struct cryptodev_pkc *pkc)
+{
+	struct kernel_crypt_kop *kop = &pkc->kop;
+	struct crypt_kop *cop = &kop->kop;
+	struct pkc_request *pkc_req;
+	struct rsa_keygen_req_s *key_req;
+	int rc, buf_size;
+	uint8_t *buf;
+
+	if (!cop->crk_param[0].crp_nbits || !cop->crk_param[1].crp_nbits ||
+		!cop->crk_param[2].crp_nbits || !cop->crk_param[3].crp_nbits ||
+		!cop->crk_param[4].crp_nbits || !cop->crk_param[5].crp_nbits ||
+		!cop->crk_param[6].crp_nbits)
+		return -EINVAL;
+
+	pkc_req = &pkc->req;
+	pkc_req->type = RSA_KEYGEN;
+	key_req = &pkc_req->req_u.rsa_keygen;
+	key_req->n_len = (cop->crk_param[2].crp_nbits + 7)/8;
+	key_req->p_len = (cop->crk_param[0].crp_nbits + 7) / 8;
+	key_req->q_len = (cop->crk_param[1].crp_nbits + 7) / 8;
+	key_req->n_len = (cop->crk_param[2].crp_nbits + 7) / 8;
+	key_req->d_len = (cop->crk_param[3].crp_nbits + 7) / 8;
+	key_req->dp_len = (cop->crk_param[4].crp_nbits + 7) / 8;
+	key_req->dq_len = (cop->crk_param[5].crp_nbits + 7) / 8;
+	key_req->c_len = (cop->crk_param[6].crp_nbits + 7) / 8;
+
+	buf_size = key_req->p_len + key_req->q_len + key_req->n_len +
+			key_req->d_len + key_req->dp_len +
+			key_req->dq_len + key_req->c_len;
+
+	buf = kmalloc(buf_size, GFP_DMA);
+	if (!buf)
+		return -ENOMEM;
+	key_req->p = buf;
+	key_req->q = key_req->p + key_req->p_len;
+	key_req->n = key_req->q + key_req->q_len;
+	key_req->d = key_req->n + key_req->n_len;
+	key_req->dp = key_req->d + key_req->d_len;
+	key_req->dq = key_req->dp + key_req->dp_len;
+	key_req->c = key_req->dq + key_req->dq_len;
+
+	rc = cryptodev_pkc_offload(pkc);
+
+	if (pkc->type == SYNCHRONOUS) {
+		if (rc)
+			goto err;
+
+		copy_to_user(cop->crk_param[0].crp_p,
+				key_req->p, key_req->p_len);
+		copy_to_user(cop->crk_param[1].crp_p,
+				key_req->q, key_req->q_len);
+		copy_to_user(cop->crk_param[2].crp_p,
+				key_req->n, key_req->n_len);
+		copy_to_user(cop->crk_param[3].crp_p,
+				key_req->d, key_req->d_len);
+		copy_to_user(cop->crk_param[4].crp_p,
+				key_req->dp, key_req->dp_len);
+		copy_to_user(cop->crk_param[5].crp_p,
+				key_req->dq, key_req->dq_len);
+		copy_to_user(cop->crk_param[6].crp_p,
+				key_req->c, key_req->c_len);
+		} else {
+		if (rc != -EINPROGRESS && !rc) {
+			printk("%s: Failed\n", __func__);
+			goto err;
+		}
+		pkc->cookie = buf;
+		return rc;
+	}
+err:
+	kfree(buf);
+	return rc;
+
+}
+
 int crypto_kop_keygen(struct cryptodev_pkc *pkc)
 {
 	struct kernel_crypt_kop *kop = &pkc->kop;
@@ -385,7 +461,6 @@ int crypto_kop_keygen(struct cryptodev_pkc *pkc)
 	buf = kmalloc(buf_size, GFP_DMA);
 	if (!buf)
 		return -ENOMEM;
-
 	key_req->q = buf;
 	key_req->r = key_req->q + key_req->q_len;
 	key_req->g = key_req->r + key_req->r_len;
@@ -649,6 +724,9 @@ int crypto_run_asym(struct cryptodev_pkc *pkc)
 		if ((kop->kop.crk_iparams != 3 && kop->kop.crk_iparams != 4))
 			goto err;
 		ret = crypto_kop_keygen(pkc);
+		break;
+	case CRK_RSA_GENERATE_KEY:
+		ret = crypto_kop_rsa_keygen(pkc);
 		break;
 	}
 err:
