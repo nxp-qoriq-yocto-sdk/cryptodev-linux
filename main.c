@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2004 Michal Ludvig <mludvig@logix.net.nz>, SuSE Labs
  * Copyright (c) 2009-2013 Nikos Mavrogiannopoulos <nmav@gnutls.org>
+ * Copyright (c) 2014 Freescale Semiconductor, Inc.
  *
  * This file is part of linux cryptodev.
  *

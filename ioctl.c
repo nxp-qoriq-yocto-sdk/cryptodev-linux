@@ -4,7 +4,7 @@
  * Copyright (c) 2004 Michal Ludvig <mludvig@logix.net.nz>, SuSE Labs
  * Copyright (c) 2009,2010,2011 Nikos Mavrogiannopoulos <nmav@gnutls.org>
  * Copyright (c) 2010 Phil Sutter
- * Copyright 2012 Freescale Semiconductor, Inc.
+ * Copyright 2012-2014 Freescale Semiconductor, Inc.
  *
  * This file is part of linux cryptodev.
  *
@@ -501,6 +501,7 @@ cryptodev_open(struct inode *inode, struct file *filp)
 	INIT_LIST_HEAD(&pcr->done.list);
 	INIT_LIST_HEAD(&pcr->asym_completed_list);
 	spin_lock_init(&pcr->completion_lock);
+
 	INIT_WORK(&pcr->cryptask, cryptask_routine);
 
 	init_waitqueue_head(&pcr->user_waiter);
@@ -780,8 +781,11 @@ static int fill_kcop_from_cop(struct kernel_crypt_op *kcop, struct fcrypt *fcr)
 
 	if (cop->iv) {
 		rc = copy_from_user(kcop->iv, cop->iv, kcop->ivlen);
-		if (unlikely(rc))
+		if (unlikely(rc)) {
+			derr(1, "error copying IV (%d bytes), copy_from_user returned %d for address %p",
+					kcop->ivlen, rc, cop->iv);
 			return -EFAULT;
+		}
 	}
 
 	return 0;

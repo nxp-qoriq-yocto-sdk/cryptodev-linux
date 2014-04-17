@@ -234,6 +234,13 @@ struct crypt_auth_op {
 #define	CRYPTO_ALG_FLAG_RNG_ENABLE	2
 #define	CRYPTO_ALG_FLAG_DSA_SHA		4
 
+enum ec_curve_t {
+	EC_DISCRETE_LOG,
+	EC_PRIME,
+	EC_BINARY,
+	MAX_EC_TYPE
+};
+
 struct crparam {
 	__u8	*crp_p;
 	__u32	crp_nbits;
@@ -249,7 +256,7 @@ struct crypt_kop {
 	__u16	crk_oparams;
 	__u32	crk_pad1;
 	struct crparam	crk_param[CRK_MAXPARAM];
-	enum curve_t curve_type; /* 0 == Discrete Log,
+	enum ec_curve_t curve_type; /* 0 == Discrete Log,
 				1 = EC_PRIME, 2 = EC_BINARY */
 	void *cookie;
 };

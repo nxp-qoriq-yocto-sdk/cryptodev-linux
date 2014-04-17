@@ -2,6 +2,7 @@
  * Driver for /dev/crypto device (aka CryptoDev)
  *
  * Copyright (c) 2011, 2012 OpenSSL Software Foundation, Inc.
+ * Copyright (c) 2014 Freescale Semiconductor, Inc.
  *
  * Author: Nikos Mavrogiannopoulos
  *
