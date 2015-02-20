@@ -714,16 +714,13 @@ static int crypto_async_fetch_asym(struct cryptodev_pkc *pkc)
 	case CRK_MOD_EXP:
 	{
 		struct rsa_pub_req_s *rsa_req = &pkc_req->req_u.rsa_pub_req;
-		copy_to_user(ckop->crk_param[3].crp_p, rsa_req->g,
-			     rsa_req->g_len);
+		copy_to_user(ckop->crk_param[3].crp_p, rsa_req->g, rsa_req->g_len);
 	}
 	break;
 	case CRK_MOD_EXP_CRT:
 	{
-		struct rsa_priv_frm3_req_s *rsa_req =
-			 &pkc_req->req_u.rsa_priv_f3;
-		copy_to_user(ckop->crk_param[6].crp_p,
-			     rsa_req->f, rsa_req->f_len);
+		struct rsa_priv_frm3_req_s *rsa_req = &pkc_req->req_u.rsa_priv_f3;
+		copy_to_user(ckop->crk_param[6].crp_p, rsa_req->f, rsa_req->f_len);
 	}
 	break;
 	case CRK_DSA_SIGN:
@@ -731,15 +728,11 @@ static int crypto_async_fetch_asym(struct cryptodev_pkc *pkc)
 		struct dsa_sign_req_s *dsa_req = &pkc_req->req_u.dsa_sign;
 
 		if (pkc_req->type == ECDSA_SIGN) {
-			copy_to_user(ckop->crk_param[6].crp_p,
-				     dsa_req->c, dsa_req->d_len);
-			copy_to_user(ckop->crk_param[7].crp_p,
-				     dsa_req->d, dsa_req->d_len);
+			copy_to_user(ckop->crk_param[6].crp_p, dsa_req->c, dsa_req->d_len);
+			copy_to_user(ckop->crk_param[7].crp_p, dsa_req->d, dsa_req->d_len);
 		} else {
-			copy_to_user(ckop->crk_param[5].crp_p,
-				     dsa_req->c, dsa_req->d_len);
-			copy_to_user(ckop->crk_param[6].crp_p,
-				     dsa_req->d, dsa_req->d_len);
+			copy_to_user(ckop->crk_param[5].crp_p, dsa_req->c, dsa_req->d_len);
+			copy_to_user(ckop->crk_param[6].crp_p, dsa_req->d, dsa_req->d_len);
 		}
 	}
 	break;
@@ -749,11 +742,9 @@ static int crypto_async_fetch_asym(struct cryptodev_pkc *pkc)
 	{
 		struct dh_key_req_s *dh_req = &pkc_req->req_u.dh_req;
 		if (pkc_req->type == ECDH_COMPUTE_KEY)
-			copy_to_user(ckop->crk_param[4].crp_p,
-				     dh_req->z, dh_req->z_len);
+			copy_to_user(ckop->crk_param[4].crp_p, dh_req->z, dh_req->z_len);
 		else
-			copy_to_user(ckop->crk_param[3].crp_p,
-				     dh_req->z, dh_req->z_len);
+			copy_to_user(ckop->crk_param[3].crp_p, dh_req->z, dh_req->z_len);
 	}
 	break;
 	case CRK_DSA_GENERATE_KEY:
@@ -763,14 +754,14 @@ static int crypto_async_fetch_asym(struct cryptodev_pkc *pkc)
 
 		if (pkc_req->type == ECC_KEYGEN) {
 			copy_to_user(ckop->crk_param[4].crp_p, key_req->pub_key,
-				     key_req->pub_key_len);
-			copy_to_user(ckop->crk_param[5].crp_p,
-				     key_req->priv_key, key_req->priv_key_len);
+					key_req->pub_key_len);
+			copy_to_user(ckop->crk_param[5].crp_p, key_req->priv_key,
+					key_req->priv_key_len);
 		} else {
-			copy_to_user(ckop->crk_param[3].crp_p,
-				     key_req->pub_key, key_req->pub_key_len);
-			copy_to_user(ckop->crk_param[4].crp_p,
-				     key_req->priv_key, key_req->priv_key_len);
+			copy_to_user(ckop->crk_param[3].crp_p, key_req->pub_key,
+					key_req->pub_key_len);
+			copy_to_user(ckop->crk_param[4].crp_p, key_req->priv_key,
+					key_req->priv_key_len);
 		}
 	}
 	default:
@@ -1113,16 +1104,14 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 			if (!list_empty(&pcr->asym_completed_list)) {
 				/* Run a loop in the list for upto  elements
 				 and copy their response back */
-				pkc =
-				 list_first_entry(&pcr->asym_completed_list,
+				pkc = list_first_entry(&pcr->asym_completed_list,
 						struct cryptodev_pkc, list);
 				list_del(&pkc->list);
 				spin_unlock_bh(&pcr->completion_lock);
 				ret = crypto_async_fetch_asym(pkc);
 				if (!ret) {
 					cookie_list.cookie_available++;
-					cookie_list.cookie[i] =
-						pkc->kop.kop.cookie;
+					cookie_list.cookie[i] =	pkc->kop.kop.cookie;
 					cookie_list.status[i] = pkc->result.err;
 				}
 				kfree(pkc);
@@ -1133,12 +1122,10 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 		}
 
 		/* Reflect the updated request to user-space */
-		if (cookie_list.cookie_available)
-			copy_to_user(arg, &cookie_list,
-				     sizeof(struct pkc_cookie_list_s));
-		else {
+		if (cookie_list.cookie_available) {
+			copy_to_user(arg, &cookie_list, sizeof(struct pkc_cookie_list_s));
+		} else {
 			struct pkc_cookie_list_s *user_ck_list = (void *)arg;
-
 			put_user(0, &(user_ck_list->cookie_available));
 		}
 		ret = cookie_list.cookie_available;

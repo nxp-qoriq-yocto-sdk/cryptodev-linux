@@ -434,7 +434,7 @@ int cryptodev_hash_final(struct hash_data *hdata, void *output)
 	return waitfor(hdata->async.result, ret);
 }
 
-int cryptodev_pkc_offload(struct cryptodev_pkc  *pkc)
+int cryptodev_pkc_offload(struct cryptodev_pkc *pkc)
 {
 	int ret = 0;
 	struct pkc_request *pkc_req = &pkc->req, *pkc_requested;
@@ -445,8 +445,7 @@ int cryptodev_pkc_offload(struct cryptodev_pkc  *pkc)
 	case RSA_PRIV_FORM1:
 	case RSA_PRIV_FORM2:
 	case RSA_PRIV_FORM3:
-		pkc->s = crypto_alloc_pkc("pkc(rsa)",
-			 CRYPTO_ALG_TYPE_PKC_RSA, 0);
+		pkc->s = crypto_alloc_pkc("pkc(rsa)", CRYPTO_ALG_TYPE_PKC_RSA, 0);
 		break;
 	case DSA_SIGN:
 	case DSA_VERIFY:
@@ -454,13 +453,11 @@ int cryptodev_pkc_offload(struct cryptodev_pkc  *pkc)
 	case ECDSA_VERIFY:
 	case DLC_KEYGEN:
 	case ECC_KEYGEN:
-		pkc->s = crypto_alloc_pkc("pkc(dsa)",
-			 CRYPTO_ALG_TYPE_PKC_DSA, 0);
+		pkc->s = crypto_alloc_pkc("pkc(dsa)", CRYPTO_ALG_TYPE_PKC_DSA, 0);
 		break;
 	case DH_COMPUTE_KEY:
 	case ECDH_COMPUTE_KEY:
-		pkc->s = crypto_alloc_pkc("pkc(dh)",
-			 CRYPTO_ALG_TYPE_PKC_DH, 0);
+		pkc->s = crypto_alloc_pkc("pkc(dh)", CRYPTO_ALG_TYPE_PKC_DH, 0);
 		break;
 	default:
 		return -EINVAL;

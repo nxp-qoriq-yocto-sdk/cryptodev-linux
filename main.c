@@ -666,9 +666,7 @@ int crypto_bn_modexp(struct cryptodev_pkc *pkc)
 	if (pkc->type == SYNCHRONOUS) {
 		if (rc)
 			goto err;
-
-		copy_to_user(cop->crk_param[3].crp_p, rsa_req->g,
-			     rsa_req->g_len);
+		copy_to_user(cop->crk_param[3].crp_p, rsa_req->g, rsa_req->g_len);
 	} else {
 		if (rc != -EINPROGRESS && rc != 0)
 			goto err;
