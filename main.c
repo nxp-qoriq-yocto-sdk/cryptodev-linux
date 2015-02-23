@@ -186,8 +186,7 @@ int crypto_kop_dsasign(struct cryptodev_pkc *pkc)
 {
 	struct kernel_crypt_kop *kop = &pkc->kop;
 	struct crypt_kop *cop = &kop->kop;
-	struct pkc_request *pkc_req = &pkc->req;
-	struct dsa_sign_req_s *dsa_req = &pkc_req->req_u.dsa_sign;
+	struct dsa_sign_req_s *dsa_req = &pkc->req->req_u.dsa_sign;
 	int rc, buf_size;
 	uint8_t *buf;
 
@@ -210,10 +209,7 @@ int crypto_kop_dsasign(struct cryptodev_pkc *pkc)
 	if (cop->crk_iparams == 6) {
 		dsa_req->ab_len = (cop->crk_param[5].crp_nbits + 7)/8;
 		buf_size += dsa_req->ab_len;
-		pkc_req->type = ECDSA_SIGN;
-		pkc_req->curve_type = cop->curve_type;
-	} else {
-		pkc_req->type = DSA_SIGN;
+		pkc->req->curve_type = cop->curve_type;
 	}
 
 	buf = kmalloc(buf_size, GFP_DMA);
@@ -269,7 +265,6 @@ int crypto_kop_dsaverify(struct cryptodev_pkc *pkc)
 {
 	struct kernel_crypt_kop *kop = &pkc->kop;
 	struct crypt_kop *cop = &kop->kop;
-	struct pkc_request *pkc_req;
 	struct dsa_verify_req_s *dsa_req;
 	int rc, buf_size;
 	uint8_t *buf;
@@ -281,8 +276,7 @@ int crypto_kop_dsaverify(struct cryptodev_pkc *pkc)
 	    !cop->crk_param[7].crp_nbits))
 		return -EINVAL;
 
-	pkc_req = &pkc->req;
-	dsa_req = &pkc_req->req_u.dsa_verify;
+	dsa_req = &pkc->req->req_u.dsa_verify;
 	dsa_req->m_len = (cop->crk_param[0].crp_nbits + 7)/8;
 	dsa_req->q_len = (cop->crk_param[1].crp_nbits + 7)/8;
 	dsa_req->r_len = (cop->crk_param[2].crp_nbits + 7)/8;
@@ -295,10 +289,7 @@ int crypto_kop_dsaverify(struct cryptodev_pkc *pkc)
 	if (cop->crk_iparams == 8) {
 		dsa_req->ab_len = (cop->crk_param[5].crp_nbits + 7)/8;
 		buf_size += dsa_req->ab_len;
-		pkc_req->type = ECDSA_VERIFY;
-		pkc_req->curve_type = cop->curve_type;
-	} else {
-		pkc_req->type = DSA_VERIFY;
+		pkc->req->curve_type = cop->curve_type;
 	}
 
 	buf = kmalloc(buf_size, GFP_DMA);
@@ -351,7 +342,6 @@ int crypto_kop_rsa_keygen(struct cryptodev_pkc *pkc)
 {
 	struct kernel_crypt_kop *kop = &pkc->kop;
 	struct crypt_kop *cop = &kop->kop;
-	struct pkc_request *pkc_req;
 	struct rsa_keygen_req_s *key_req;
 	int rc, buf_size;
 	uint8_t *buf;
@@ -362,9 +352,7 @@ int crypto_kop_rsa_keygen(struct cryptodev_pkc *pkc)
 		!cop->crk_param[6].crp_nbits)
 		return -EINVAL;
 
-	pkc_req = &pkc->req;
-	pkc_req->type = RSA_KEYGEN;
-	key_req = &pkc_req->req_u.rsa_keygen;
+	key_req = &pkc->req->req_u.rsa_keygen;
 	key_req->n_len = (cop->crk_param[2].crp_nbits + 7)/8;
 	key_req->p_len = (cop->crk_param[0].crp_nbits + 7) / 8;
 	key_req->q_len = (cop->crk_param[1].crp_nbits + 7) / 8;
@@ -427,7 +415,6 @@ int crypto_kop_keygen(struct cryptodev_pkc *pkc)
 {
 	struct kernel_crypt_kop *kop = &pkc->kop;
 	struct crypt_kop *cop = &kop->kop;
-	struct pkc_request *pkc_req;
 	struct keygen_req_s *key_req;
 	int rc, buf_size;
 	uint8_t *buf;
@@ -437,8 +424,7 @@ int crypto_kop_keygen(struct cryptodev_pkc *pkc)
 	    !cop->crk_param[4].crp_nbits)
 		return -EINVAL;
 
-	pkc_req = &pkc->req;
-	key_req = &pkc_req->req_u.keygen;
+	key_req = &pkc->req->req_u.keygen;
 	key_req->q_len = (cop->crk_param[0].crp_nbits + 7)/8;
 	key_req->r_len = (cop->crk_param[1].crp_nbits + 7)/8;
 	key_req->g_len = (cop->crk_param[2].crp_nbits + 7)/8;
@@ -447,7 +433,6 @@ int crypto_kop_keygen(struct cryptodev_pkc *pkc)
 		key_req->priv_key_len = (cop->crk_param[4].crp_nbits + 7)/8;
 		buf_size = key_req->q_len + key_req->r_len + key_req->g_len +
 			key_req->pub_key_len + key_req->priv_key_len;
-		pkc_req->type = DLC_KEYGEN;
 	} else {
 		key_req->ab_len = (cop->crk_param[3].crp_nbits + 7)/8;
 		key_req->pub_key_len = (cop->crk_param[4].crp_nbits + 7)/8;
@@ -455,8 +440,7 @@ int crypto_kop_keygen(struct cryptodev_pkc *pkc)
 		buf_size = key_req->q_len + key_req->r_len + key_req->g_len +
 			key_req->pub_key_len + key_req->priv_key_len +
 			key_req->ab_len;
-		pkc_req->type = ECC_KEYGEN;
-		pkc_req->curve_type = cop->curve_type;
+		pkc->req->curve_type = cop->curve_type;
 	}
 
 	buf = kmalloc(buf_size, GFP_DMA);
@@ -508,26 +492,22 @@ int crypto_kop_dh_key(struct cryptodev_pkc *pkc)
 {
 	struct kernel_crypt_kop *kop = &pkc->kop;
 	struct crypt_kop *cop = &kop->kop;
-	struct pkc_request *pkc_req;
 	struct dh_key_req_s *dh_req;
 	int buf_size;
 	uint8_t *buf;
 	int rc = -EINVAL;
 
-	pkc_req = &pkc->req;
-	dh_req = &pkc_req->req_u.dh_req;
+	dh_req = &pkc->req->req_u.dh_req;
 	dh_req->s_len = (cop->crk_param[0].crp_nbits + 7)/8;
 	dh_req->pub_key_len = (cop->crk_param[1].crp_nbits + 7)/8;
 	dh_req->q_len = (cop->crk_param[2].crp_nbits + 7)/8;
 	buf_size = dh_req->q_len + dh_req->pub_key_len + dh_req->s_len;
 	if (cop->crk_iparams == 4) {
-		pkc_req->type = ECDH_COMPUTE_KEY;
 		dh_req->ab_len = (cop->crk_param[3].crp_nbits + 7)/8;
 		dh_req->z_len = (cop->crk_param[4].crp_nbits + 7)/8;
 		buf_size += dh_req->ab_len;
 	} else {
 		dh_req->z_len = (cop->crk_param[3].crp_nbits + 7)/8;
-		pkc_req->type = DH_COMPUTE_KEY;
 	}
 	buf_size += dh_req->z_len;
 	buf = kmalloc(buf_size, GFP_DMA);
@@ -539,7 +519,7 @@ int crypto_kop_dh_key(struct cryptodev_pkc *pkc)
 	dh_req->z = dh_req->pub_key + dh_req->pub_key_len;
 	if (cop->crk_iparams == 4) {
 		dh_req->ab = dh_req->z + dh_req->z_len;
-		pkc_req->curve_type = cop->curve_type;
+		pkc->req->curve_type = cop->curve_type;
 		copy_from_user(dh_req->ab, cop->crk_param[3].crp_p,
 			       dh_req->ab_len);
 	}
@@ -573,7 +553,6 @@ int crypto_modexp_crt(struct cryptodev_pkc *pkc)
 {
 	struct kernel_crypt_kop *kop = &pkc->kop;
 	struct crypt_kop *cop = &kop->kop;
-	struct pkc_request *pkc_req;
 	struct rsa_priv_frm3_req_s *rsa_req;
 	int rc;
 	uint8_t *buf;
@@ -583,9 +562,7 @@ int crypto_modexp_crt(struct cryptodev_pkc *pkc)
 	    !cop->crk_param[4].crp_nbits || !cop->crk_param[5].crp_nbits)
 		return -EINVAL;
 
-	pkc_req = &pkc->req;
-	pkc_req->type = RSA_PRIV_FORM3;
-	rsa_req = &pkc_req->req_u.rsa_priv_f3;
+	rsa_req = &pkc->req->req_u.rsa_priv_f3;
 	rsa_req->p_len = (cop->crk_param[0].crp_nbits + 7)/8;
 	rsa_req->q_len = (cop->crk_param[1].crp_nbits + 7)/8;
 	rsa_req->g_len = (cop->crk_param[2].crp_nbits + 7)/8;
@@ -632,7 +609,6 @@ err:
 
 int crypto_bn_modexp(struct cryptodev_pkc *pkc)
 {
-	struct pkc_request *pkc_req;
 	struct rsa_pub_req_s *rsa_req;
 	int rc;
 	struct kernel_crypt_kop *kop = &pkc->kop;
@@ -643,9 +619,7 @@ int crypto_bn_modexp(struct cryptodev_pkc *pkc)
 	    !cop->crk_param[2].crp_nbits || !cop->crk_param[3].crp_nbits)
 		return -EINVAL;
 
-	pkc_req = &pkc->req;
-	pkc_req->type = RSA_PUB;
-	rsa_req = &pkc_req->req_u.rsa_pub_req;
+	rsa_req = &pkc->req->req_u.rsa_pub_req;
 	rsa_req->f_len = (cop->crk_param[0].crp_nbits + 7)/8;
 	rsa_req->e_len = (cop->crk_param[1].crp_nbits + 7)/8;
 	rsa_req->n_len = (cop->crk_param[2].crp_nbits + 7)/8;
@@ -680,56 +654,116 @@ err:
 	return rc;
 }
 
+static struct {
+	char *alg_name;
+	u32 type;
+	u32 mask;
+} pkc_alg_list[] = {
+		{"pkc(rsa)", CRYPTO_ALG_TYPE_PKC_RSA, 0},
+		{"pkc(dsa)", CRYPTO_ALG_TYPE_PKC_DSA, 0},
+		{"pkc(dh)", CRYPTO_ALG_TYPE_PKC_DH, 0},
+};
+
 int crypto_run_asym(struct cryptodev_pkc *pkc)
 {
-	int ret = -EINVAL;
+	int err = -EINVAL;
+	int id;
 	struct kernel_crypt_kop *kop = &pkc->kop;
+	enum pkc_req_type pkc_req_type;
+	int (*call_next_action)(struct cryptodev_pkc *pkc);
 
 	switch (kop->kop.crk_op) {
 	case CRK_MOD_EXP:
 		if (kop->kop.crk_iparams != 3 && kop->kop.crk_oparams != 1)
-			goto err;
-
-		ret = crypto_bn_modexp(pkc);
+			return err;
+		pkc_req_type = RSA_PUB;
+		id = 0;
+		call_next_action = crypto_bn_modexp;
 		break;
 	case CRK_MOD_EXP_CRT:
 		if (kop->kop.crk_iparams != 6 && kop->kop.crk_oparams != 1)
-			goto err;
-
-		ret = crypto_modexp_crt(pkc);
+			return err;
+		pkc_req_type = RSA_PRIV_FORM3;
+		id = 0;
+		call_next_action = crypto_modexp_crt;
 		break;
 	case CRK_DSA_SIGN:
-		if ((kop->kop.crk_iparams != 5 && kop->kop.crk_iparams != 6) ||
-		    kop->kop.crk_oparams != 2)
-			goto err;
-
-		ret = crypto_kop_dsasign(pkc);
+		if (kop->kop.crk_oparams != 2)
+			return err;
+		else if (kop->kop.crk_iparams == 5)
+			pkc_req_type = DSA_SIGN;
+		else if (kop->kop.crk_iparams == 6)
+			pkc_req_type = ECDSA_SIGN;
+		else
+			return err;
+		id = 1;
+		call_next_action = crypto_kop_dsasign;
 		break;
 	case CRK_DSA_VERIFY:
-		if ((kop->kop.crk_iparams != 7 && kop->kop.crk_iparams != 8) ||
-		    kop->kop.crk_oparams != 0)
-			goto err;
-
-		ret = crypto_kop_dsaverify(pkc);
+		if (kop->kop.crk_oparams != 0)
+			return err;
+		else if (kop->kop.crk_iparams == 7)
+			pkc_req_type = DSA_VERIFY;
+		else if (kop->kop.crk_iparams == 8)
+			pkc_req_type = ECDSA_VERIFY;
+		else
+			return err;
+		id = 1;
+		call_next_action = crypto_kop_dsaverify;
 		break;
 	case CRK_DH_COMPUTE_KEY:
-		if ((kop->kop.crk_iparams != 3 && kop->kop.crk_iparams != 4) ||
-		    kop->kop.crk_oparams != 1)
-			goto err;
-		ret = crypto_kop_dh_key(pkc);
+		if (kop->kop.crk_oparams != 1)
+			return err;
+		else if (kop->kop.crk_iparams == 3)
+			pkc_req_type =  DH_COMPUTE_KEY;
+		else if (kop->kop.crk_iparams == 4)
+			pkc_req_type =  ECDH_COMPUTE_KEY;
+		else
+			return err;
+		id = 2;
+		call_next_action = crypto_kop_dh_key;
 		break;
 	case CRK_DH_GENERATE_KEY:
 	case CRK_DSA_GENERATE_KEY:
-		if ((kop->kop.crk_iparams != 3 && kop->kop.crk_iparams != 4))
-			goto err;
-		ret = crypto_kop_keygen(pkc);
+		if (kop->kop.crk_iparams == 3)
+			pkc_req_type = DLC_KEYGEN;
+		else if (kop->kop.crk_iparams == 4)
+			pkc_req_type = ECC_KEYGEN;
+		else
+			return err;
+		id = 1;
+		call_next_action = crypto_kop_keygen;
 		break;
 	case CRK_RSA_GENERATE_KEY:
-		ret = crypto_kop_rsa_keygen(pkc);
+		pkc_req_type = RSA_KEYGEN;
+		id = 0;
+		call_next_action = crypto_kop_rsa_keygen;
 		break;
+	default:
+		return err;
 	}
-err:
-	return ret;
+	err = -ENOMEM;
+	pkc->s = crypto_alloc_pkc(pkc_alg_list[id].alg_name,
+					pkc_alg_list[id].type,
+					pkc_alg_list[id].mask);
+	if (IS_ERR_OR_NULL(pkc->s))
+		return err;
+
+	pkc->req = pkc_request_alloc(pkc->s, GFP_KERNEL);
+	if (IS_ERR_OR_NULL(pkc->req))
+		goto out_free_tfm;
+
+	/* todo - fix alloc-free on error path */
+	pkc->req->type = pkc_req_type;
+	err = call_next_action(pkc);
+	if (pkc->type == SYNCHRONOUS)
+		kfree(pkc->req);
+
+	return err;
+
+out_free_tfm:
+	crypto_free_pkc(pkc->s);
+	return err;
 }
 
 int crypto_run(struct fcrypt *fcr, struct kernel_crypt_op *kcop)

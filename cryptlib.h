@@ -110,8 +110,7 @@ struct cryptodev_pkc {
 	struct crypto_pkc *s;    /* Transform pointer from CryptoAPI */
 	struct cryptodev_result result;	/* Result to be updated by
 					 completion handler */
-	struct pkc_request req; /* PKC request structure allocated
-				 from CryptoAPI */
+	struct pkc_request *req; /* PKC request allocated from CryptoAPI */
 	enum offload_type type; /* Synchronous Vs Asynchronous request */
 	/*
 	 * cookie used for transfering tranparent information from async

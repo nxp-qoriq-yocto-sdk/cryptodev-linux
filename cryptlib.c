@@ -436,59 +436,22 @@ int cryptodev_hash_final(struct hash_data *hdata, void *output)
 
 int cryptodev_pkc_offload(struct cryptodev_pkc *pkc)
 {
-	int ret = 0;
-	struct pkc_request *pkc_req = &pkc->req, *pkc_requested;
-
-	switch (pkc_req->type) {
-	case RSA_KEYGEN:
-	case RSA_PUB:
-	case RSA_PRIV_FORM1:
-	case RSA_PRIV_FORM2:
-	case RSA_PRIV_FORM3:
-		pkc->s = crypto_alloc_pkc("pkc(rsa)", CRYPTO_ALG_TYPE_PKC_RSA, 0);
-		break;
-	case DSA_SIGN:
-	case DSA_VERIFY:
-	case ECDSA_SIGN:
-	case ECDSA_VERIFY:
-	case DLC_KEYGEN:
-	case ECC_KEYGEN:
-		pkc->s = crypto_alloc_pkc("pkc(dsa)", CRYPTO_ALG_TYPE_PKC_DSA, 0);
-		break;
-	case DH_COMPUTE_KEY:
-	case ECDH_COMPUTE_KEY:
-		pkc->s = crypto_alloc_pkc("pkc(dh)", CRYPTO_ALG_TYPE_PKC_DH, 0);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (IS_ERR_OR_NULL(pkc->s))
-		return -EINVAL;
+	int ret;
 
 	init_completion(&pkc->result.completion);
-	pkc_requested = pkc_request_alloc(pkc->s, GFP_KERNEL);
-
-	if (unlikely(IS_ERR_OR_NULL(pkc_requested))) {
-		ret = -ENOMEM;
-		goto error;
-	}
-	pkc_requested->type = pkc_req->type;
-	pkc_requested->curve_type = pkc_req->curve_type;
-	memcpy(&pkc_requested->req_u, &pkc_req->req_u, sizeof(pkc_req->req_u));
-	pkc_request_set_callback(pkc_requested, CRYPTO_TFM_REQ_MAY_BACKLOG,
+	pkc_request_set_callback(pkc->req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				 cryptodev_complete_asym, pkc);
-	ret = crypto_pkc_op(pkc_requested);
+	ret = crypto_pkc_op(pkc->req);
 	if (ret != -EINPROGRESS && ret != 0)
-		goto error2;
+		goto error;
 
 	if (pkc->type == SYNCHRONOUS)
 		ret = waitfor(&pkc->result, ret);
 
 	return ret;
-error2:
-	kfree(pkc_requested);
+
 error:
+	kfree(pkc->req);
 	crypto_free_pkc(pkc->s);
 	return ret;
 }
