@@ -114,8 +114,6 @@ void cryptodev_complete_asym(struct crypto_async_request *req, int err)
 		/* wake for POLLIN */
 		wake_up_interruptible(&pcr->user_waiter);
 	}
-
-	kfree(req);
 }
 
 #define FILL_SG(sg, ptr, len)					\
@@ -1113,6 +1111,7 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 					cookie_list.cookie[i] =	pkc->kop.kop.cookie;
 					cookie_list.status[i] = pkc->result.err;
 				}
+				kfree(pkc->req);
 				kfree(pkc);
 			} else {
 				spin_unlock_bh(&pcr->completion_lock);
