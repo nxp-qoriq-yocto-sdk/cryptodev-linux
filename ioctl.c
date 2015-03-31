@@ -206,6 +206,21 @@ crypto_create_session(struct fcrypt *fcr, struct session_op *sop)
 		stream = 0;
 		aead = 1;
 		break;
+	case CRYPTO_TLS12_3DES_CBC_HMAC_SHA1:
+		alg_name = "tls12(hmac(sha1),cbc(des3_ede))";
+		stream = 0;
+		aead = 1;
+		break;
+	case CRYPTO_TLS12_AES_CBC_HMAC_SHA1:
+		alg_name = "tls12(hmac(sha1),cbc(aes))";
+		stream = 0;
+		aead = 1;
+		break;
+	case CRYPTO_TLS12_AES_CBC_HMAC_SHA256:
+		alg_name = "tls12(hmac(sha256),cbc(aes))";
+		stream = 0;
+		aead = 1;
+		break;
 	case CRYPTO_NULL:
 		alg_name = "ecb(cipher_null)";
 		stream = 1;
