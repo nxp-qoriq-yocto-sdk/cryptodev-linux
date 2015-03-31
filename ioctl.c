@@ -186,13 +186,23 @@ crypto_create_session(struct fcrypt *fcr, struct session_op *sop)
 		stream = 1;
 		aead = 1;
 		break;
+	case CRYPTO_TLS10_3DES_CBC_HMAC_SHA1:
+		alg_name = "tls10(hmac(sha1),cbc(des3_ede))";
+		stream = 0;
+		aead = 1;
+		break;
 	case CRYPTO_TLS10_AES_CBC_HMAC_SHA1:
 		alg_name = "tls10(hmac(sha1),cbc(aes))";
 		stream = 0;
 		aead = 1;
 		break;
-	case CRYPTO_TLS10_3DES_CBC_HMAC_SHA1:
-		alg_name = "tls10(hmac(sha1),cbc(des3_ede))";
+	case CRYPTO_TLS11_3DES_CBC_HMAC_SHA1:
+		alg_name = "tls11(hmac(sha1),cbc(des3_ede))";
+		stream = 0;
+		aead = 1;
+		break;
+	case CRYPTO_TLS11_AES_CBC_HMAC_SHA1:
+		alg_name = "tls11(hmac(sha1),cbc(aes))";
 		stream = 0;
 		aead = 1;
 		break;
