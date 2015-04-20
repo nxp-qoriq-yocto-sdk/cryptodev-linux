@@ -977,10 +977,14 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 
 	switch (cmd) {
 	case CIOCASYMFEAT:
-		return put_user(CRF_MOD_EXP_CRT |  CRF_MOD_EXP | CRF_DSA_SIGN |
-			CRF_DSA_VERIFY | CRF_DH_COMPUTE_KEY |
-			CRF_DSA_GENERATE_KEY | CRF_DH_GENERATE_KEY |
-			CRF_RSA_GENERATE_KEY, p);
+		ses = 0;
+		if (crypto_has_alg("pkc(rsa)", 0, 0))
+			ses = CRF_MOD_EXP_CRT |	CRF_MOD_EXP | CRF_RSA_GENERATE_KEY;
+		if (crypto_has_alg("pkc(dsa)", 0, 0))
+			ses |= CRF_DSA_SIGN | CRF_DSA_VERIFY | CRF_DSA_GENERATE_KEY;
+		if (crypto_has_alg("pkc(dh)", 0, 0))
+			ses |= CRF_DH_COMPUTE_KEY |CRF_DH_GENERATE_KEY;
+		return put_user(ses, p);
 	case CRIOGET:
 		fd = clonefd(filp);
 		ret = put_user(fd, p);
