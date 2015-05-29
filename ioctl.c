@@ -838,16 +838,6 @@ static int kop_from_user(struct kernel_crypt_kop *kop,
 	return fill_kop_from_cop(kop);
 }
 
-static int kop_to_user(struct kernel_crypt_kop *kop,
-			void __user *arg)
-{
-	if (unlikely(copy_to_user(arg, &kop->kop, sizeof(kop->kop)))) {
-		dprintk(1, KERN_ERR, "Cannot copy to userspace\n");
-		return -EFAULT;
-	}
-	return 0;
-}
-
 static int kcop_from_user(struct kernel_crypt_op *kcop,
 			struct fcrypt *fcr, void __user *arg)
 {
@@ -1190,18 +1180,6 @@ static inline void crypt_kop_to_compat(struct crypt_kop *kop,
 	}
 	compat->cookie = kop->cookie;
 	compat->curve_type = kop->curve_type;
-}
-
-static int compat_kop_to_user(struct kernel_crypt_kop *kop, void __user *arg)
-{
-	struct compat_crypt_kop compat_kop;
-
-	crypt_kop_to_compat(&kop->kop, &compat_kop);
-	if (unlikely(copy_to_user(arg, &compat_kop, sizeof(compat_kop)))) {
-		dprintk(1, KERN_ERR, "Cannot copy to userspace\n");
-		return -EFAULT;
-	}
-	return 0;
 }
 
 static inline void
