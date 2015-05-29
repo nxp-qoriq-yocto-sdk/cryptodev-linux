@@ -1387,9 +1387,10 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 	case COMPAT_CIOCASYMFETCHCOOKIE:
 	{
 		struct cryptodev_pkc *pkc;
-		int i = 0;
+		int i;
 		struct compat_pkc_cookie_list_s cookie_list;
 
+		ret = 0;
 		cookie_list.cookie_available = 0;
 
 		for (i = 0; i < MAX_COOKIES; i++) {
