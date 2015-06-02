@@ -1148,7 +1148,7 @@ static inline void compat_to_crypt_kop(struct compat_crypt_kop *compat,
 	}
 
 	kop->curve_type = compat->curve_type;
-	kop->cookie = compat->cookie;
+	kop->cookie = compat_ptr(compat->cookie);
 }
 
 static int compat_kop_from_user(struct kernel_crypt_kop *kop,
@@ -1178,7 +1178,7 @@ static inline void crypt_kop_to_compat(struct crypt_kop *kop,
 			 ptr_to_compat(kop->crk_param[i].crp_p);
 		compat->crk_param[i].crp_nbits = kop->crk_param[i].crp_nbits;
 	}
-	compat->cookie = kop->cookie;
+	compat->cookie = ptr_to_compat(kop->cookie);
 	compat->curve_type = kop->curve_type;
 }
 
@@ -1405,8 +1405,8 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 				ret = crypto_async_fetch_asym(pkc);
 				if (!ret) {
 					cookie_list.cookie_available++;
-					cookie_list.cookie[i] =
-						 pkc->kop.kop.cookie;
+					cookie_list.cookie[i] = ptr_to_compat(
+							pkc->kop.kop.cookie);
 				}
 				kfree(pkc);
 			} else {
