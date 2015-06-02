@@ -143,7 +143,7 @@ int cryptodev_cipher_init(struct cipher_data *out, const char *alg_name,
 			if (alg->max_keysize > 0 &&
 					unlikely((keylen < alg->min_keysize) ||
 					(keylen > alg->max_keysize))) {
-				ddebug(1, "Wrong keylen '%u' for algorithm '%s'. Use %u to %u.",
+				ddebug(1, "Wrong keylen '%zu' for algorithm '%s'. Use %u to %u.",
 						keylen, alg_name, alg->min_keysize, alg->max_keysize);
 				ret = -EINVAL;
 				goto error;
@@ -170,7 +170,7 @@ int cryptodev_cipher_init(struct cipher_data *out, const char *alg_name,
 	}
 
 	if (unlikely(ret)) {
-		ddebug(1, "Setting key failed for %s-%u.", alg_name, keylen*8);
+		ddebug(1, "Setting key failed for %s-%zu.", alg_name, keylen*8);
 		ret = -EINVAL;
 		goto error;
 	}
@@ -337,7 +337,7 @@ int cryptodev_hash_init(struct hash_data *hdata, const char *alg_name,
 	if (hmac_mode != 0) {
 		ret = crypto_ahash_setkey(hdata->async.s, mackey, mackeylen);
 		if (unlikely(ret)) {
-			ddebug(1, "Setting hmac key failed for %s-%u.",
+			ddebug(1, "Setting hmac key failed for %s-%zu.",
 					alg_name, mackeylen*8);
 			ret = -EINVAL;
 			goto error;
