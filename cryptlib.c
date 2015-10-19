@@ -194,8 +194,7 @@ int cryptodev_cipher_init(struct cipher_data *out, const char *alg_name,
 			goto error;
 		}
 
-		ablkcipher_request_set_callback(out->async.request,
-					CRYPTO_TFM_REQ_MAY_BACKLOG,
+		ablkcipher_request_set_callback(out->async.request, 0,
 					cryptodev_complete, out->async.result);
 	} else {
 		out->async.arequest = aead_request_alloc(out->async.as, GFP_KERNEL);
@@ -205,8 +204,7 @@ int cryptodev_cipher_init(struct cipher_data *out, const char *alg_name,
 			goto error;
 		}
 
-		aead_request_set_callback(out->async.arequest,
-					CRYPTO_TFM_REQ_MAY_BACKLOG,
+		aead_request_set_callback(out->async.arequest, 0,
 					cryptodev_complete, out->async.result);
 	}
 
@@ -362,9 +360,8 @@ int cryptodev_hash_init(struct hash_data *hdata, const char *alg_name,
 		goto error;
 	}
 
-	ahash_request_set_callback(hdata->async.request,
-			CRYPTO_TFM_REQ_MAY_BACKLOG,
-			cryptodev_complete, hdata->async.result);
+	ahash_request_set_callback(hdata->async.request, 0,
+				   cryptodev_complete, hdata->async.result);
 
 	ret = crypto_ahash_init(hdata->async.request);
 	if (unlikely(ret)) {
@@ -439,8 +436,7 @@ int cryptodev_pkc_offload(struct cryptodev_pkc *pkc)
 	int ret;
 
 	init_completion(&pkc->result.completion);
-	pkc_request_set_callback(pkc->req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				 cryptodev_complete_asym, pkc);
+	pkc_request_set_callback(pkc->req, 0, cryptodev_complete_asym, pkc);
 	ret = crypto_pkc_op(pkc->req);
 	if (ret != -EINPROGRESS && ret != 0)
 		goto error;
