@@ -132,7 +132,7 @@ struct compat_crypt_auth_op {
 /* compat ioctls, defined for the above structs */
 #define COMPAT_CIOCGSESSION    _IOWR('c', 102, struct compat_session_op)
 #define COMPAT_CIOCCRYPT       _IOWR('c', 104, struct compat_crypt_op)
-#define COMPAT_CIOCKEY    _IOW('c', 105, struct compat_crypt_kop)
+#define COMPAT_CIOCKEY    _IOWR('c', 105, struct compat_crypt_kop)
 #define COMPAT_CIOCASYNCCRYPT  _IOW('c', 107, struct compat_crypt_op)
 #define COMPAT_CIOCASYNCFETCH  _IOR('c', 108, struct compat_crypt_op)
 #define COMPAT_CIOCAUTHCRYPT   _IOWR('c', 109, struct compat_crypt_auth_op)
