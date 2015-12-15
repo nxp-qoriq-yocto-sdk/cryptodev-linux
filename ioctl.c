@@ -960,6 +960,7 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 	void __user *arg = (void __user *)arg_;
 	int __user *p = arg;
 	struct session_op sop;
+	struct hash_op_data hash_op;
 	struct kernel_crypt_op kcop;
 	struct kernel_crypt_auth_op kcaop;
 	struct crypt_priv *pcr = filp->private_data;
@@ -1049,6 +1050,54 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 		}
 
 		return kcop_to_user(&kcop, fcr, arg);
+	case CIOCHASH:
+		/* get session */
+		if (unlikely(copy_from_user(&hash_op, arg, sizeof(struct hash_op_data)))) {
+			pr_err("copy from user fault\n");
+			return -EFAULT;
+		}
+
+		sop.cipher = 0;
+		sop.mac = hash_op.mac_op;
+		sop.mackey = hash_op.mackey;
+		sop.mackeylen = hash_op.mackeylen;
+
+		/* writes sop.ses as a side-effect */
+		ret = crypto_create_session(fcr, &sop);
+		if (unlikely(ret)) {
+			pr_err("can't get session\n");
+			return ret;
+		}
+
+		/* do hashing */
+		kcop.cop.ses = sop.ses;
+		kcop.cop.flags = hash_op.flags;
+		kcop.cop.len = hash_op.len;
+		kcop.cop.src = hash_op.src;
+		kcop.cop.mac = hash_op.mac_result;
+		kcop.cop.dst = 0;
+		kcop.cop.op = 0;
+		kcop.cop.iv = 0;
+		kcop.ivlen = 0;
+		kcop.digestsize = 0; /* will be updated during operation */
+		kcop.task = current;
+		kcop.mm = current->mm;
+
+		ret = crypto_run(fcr, &kcop);
+		if (unlikely(ret)) {
+			dwarning(1, "Error in hash run");
+			return ret;
+		}
+
+		ret = copy_to_user(kcop.cop.mac, kcop.hash_output, kcop.digestsize);
+		if (unlikely(ret)) {
+			dwarning(1, "Error in copy to user");
+			return ret;
+		}
+
+		/* put session */
+		ret = crypto_finish_session(fcr, sop.ses);
+		return 0;
 	case CIOCAUTHCRYPT:
 		if (unlikely(ret = kcaop_from_user(&kcaop, fcr, arg))) {
 			dwarning(1, "Error copying from user");
