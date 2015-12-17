@@ -164,6 +164,15 @@ struct kernel_crypt_op {
 	struct mm_struct *mm;
 };
 
+struct kernel_hash_op {
+	struct hash_op_data hash_op;
+
+	int digestsize;
+	uint8_t hash_output[AALG_MAX_RESULT_LEN];
+	struct task_struct *task;
+	struct mm_struct *mm;
+};
+
 struct kernel_crypt_auth_op {
 	struct crypt_auth_op caop;
 
@@ -192,6 +201,7 @@ int kcaop_to_user(struct kernel_crypt_auth_op *kcaop,
 		struct fcrypt *fcr, void __user *arg);
 int crypto_auth_run(struct fcrypt *fcr, struct kernel_crypt_auth_op *kcaop);
 int crypto_run(struct fcrypt *fcr, struct kernel_crypt_op *kcop);
+int hash_run(struct kernel_hash_op *khop);
 
 #include <cryptlib.h>
 

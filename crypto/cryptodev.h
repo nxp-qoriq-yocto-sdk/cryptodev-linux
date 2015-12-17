@@ -169,7 +169,7 @@ struct crypt_auth_op {
 
 /* data container for CIOCHASH operations */
 struct hash_op_data {
-	__u32	ses;		/* session identifier */
+	struct csession	*ses;	/* session identifier */
 	__u32	mac_op;		/* cryptodev_crypto_op_t */
 	__u8	*mackey;
 	__u32	mackeylen;
