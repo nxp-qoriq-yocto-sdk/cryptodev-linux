@@ -6,6 +6,11 @@
 
 #include <linux/version.h>
 
+struct cryptodev_result {
+	struct completion completion;
+	int err;
+};
+
 struct cipher_data {
 	int init; /* 0 uninitialized */
 	int blocksize;
@@ -22,7 +27,7 @@ struct cipher_data {
 		struct crypto_aead *as;
 		struct aead_request *arequest;
 
-		struct cryptodev_result *result;
+		struct cryptodev_result result;
 		uint8_t iv[EALG_MAX_BLOCK_LEN];
 	} async;
 };
@@ -85,7 +90,7 @@ struct hash_data {
 	int alignmask;
 	struct {
 		struct crypto_ahash *s;
-		struct cryptodev_result *result;
+		struct cryptodev_result result;
 		struct ahash_request *request;
 	} async;
 };
@@ -102,11 +107,6 @@ int cryptodev_hash_init(struct hash_data *hdata, const char *alg_name,
 enum offload_type {
 	SYNCHRONOUS,
 	ASYNCHRONOUS
-};
-
-struct cryptodev_result {
-	struct completion completion;
-	int err;
 };
 
 struct cryptodev_pkc {
