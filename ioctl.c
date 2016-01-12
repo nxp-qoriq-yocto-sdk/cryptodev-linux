@@ -1435,8 +1435,11 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 	struct fcrypt *fcr;
 	struct session_op sop;
 	struct compat_session_op compat_sop;
+	struct kernel_hash_op khop;
 	struct kernel_crypt_op kcop;
 	struct kernel_crypt_auth_op kcaop;
+	struct compat_hash_op_data compat_hash_op_data;
+
 	int ret;
 
 	if (unlikely(!pcr))
@@ -1498,6 +1501,53 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 			return ret;
 
 		return compat_kcop_to_user(&kcop, fcr, arg);
+
+	case COMPAT_CIOCHASH:
+		/* get session */
+		if (unlikely(copy_from_user(&compat_hash_op_data, arg,
+					sizeof(struct compat_hash_op_data)))) {
+			pr_err("copy from user fault\n");
+			return -EFAULT;
+		}
+
+		khop.task = current;
+		khop.mm = current->mm;
+
+		khop.hash_op.mac_op = compat_hash_op_data.mac_op;
+		khop.hash_op.mackey = compat_ptr(compat_hash_op_data.mackey);
+		khop.hash_op.mackeylen = compat_hash_op_data.mackeylen;
+		khop.hash_op.flags = compat_hash_op_data.flags;
+		khop.hash_op.len = compat_hash_op_data.len;
+		khop.hash_op.src = compat_ptr(compat_hash_op_data.src);
+		khop.hash_op.mac_result =
+				compat_ptr(compat_hash_op_data.mac_result);
+
+		ret = hash_create_session(&khop.hash_op);
+		if (unlikely(ret)) {
+			pr_err("can't get session\n");
+			return ret;
+		}
+
+		/* do hashing */
+		ret = hash_run(&khop);
+		if (unlikely(ret)) {
+			dwarning(1, "Error in hash run");
+			return ret;
+		}
+
+		ret = copy_to_user(khop.hash_op.mac_result, khop.hash_output,
+				   khop.digestsize);
+		if (unlikely(ret)) {
+			dwarning(1, "Error in copy to user");
+			return ret;
+		}
+
+		copy_to_user(arg, &compat_hash_op_data,
+			     sizeof(struct compat_hash_op_data));
+
+		/* put session */
+		hash_destroy_session(khop.hash_op.ses);
+		return 0;
 
 	case COMPAT_CIOCAUTHCRYPT:
 		if (unlikely(ret = compat_kcaop_from_user(&kcaop, fcr, arg))) {

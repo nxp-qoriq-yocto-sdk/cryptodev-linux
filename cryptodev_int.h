@@ -129,6 +129,18 @@ struct compat_crypt_auth_op {
 	uint32_t	iv_len;
 };
 
+struct compat_hash_op_data {
+	compat_uptr_t	ses;
+	uint32_t	mac_op;		/* cryptodev_crypto_op_t */
+	compat_uptr_t	mackey;
+	uint32_t	mackeylen;
+
+	uint16_t	flags;		/* see COP_FLAG_* */
+	uint32_t	len;		/* length of source data */
+	compat_uptr_t	src;		/* source data */
+	compat_uptr_t	mac_result;
+};
+
 /* compat ioctls, defined for the above structs */
 #define COMPAT_CIOCGSESSION    _IOWR('c', 102, struct compat_session_op)
 #define COMPAT_CIOCCRYPT       _IOWR('c', 104, struct compat_crypt_op)
@@ -139,7 +151,7 @@ struct compat_crypt_auth_op {
 #define COMPAT_CIOCASYMASYNCRYPT    _IOW('c', 110, struct compat_crypt_kop)
 #define COMPAT_CIOCASYMFETCHCOOKIE    _IOR('c', 111, \
 				struct compat_pkc_cookie_list_s)
-
+#define COMPAT_CIOCHASH	_IOWR('c', 114, struct compat_hash_op_data)
 #endif /* CONFIG_COMPAT */
 
 /* kernel-internal extension to struct crypt_kop */
