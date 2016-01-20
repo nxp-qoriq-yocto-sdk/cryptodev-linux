@@ -167,6 +167,19 @@ struct crypt_auth_op {
 	__u32   iv_len;
 };
 
+/* data container for CIOCHASH operations */
+struct hash_op_data {
+	struct csession	*ses;	/* session identifier */
+	__u32	mac_op;		/* cryptodev_crypto_op_t */
+	__u8	*mackey;
+	__u32	mackeylen;
+
+	__u16	flags;		/* see COP_FLAG_* */
+	__u32	len;		/* length of source data */
+	__u8	*src;		/* source data */
+	__u8	*mac_result;
+};
+
 /* In plain AEAD mode the following are required:
  *  flags   : 0
  *  iv      : the initialization vector (12 bytes)
@@ -325,4 +338,7 @@ enum cryptodev_crk_op_t {
 /* additional ioctls for asynchronous  operation for asymmetric ciphers*/
 #define CIOCASYMASYNCRYPT    _IOW('c', 112, struct crypt_kop)
 #define CIOCASYMFETCHCOOKIE    _IOR('c', 113, struct pkc_cookie_list_s)
+
+#define CIOCHASH	_IOWR('c', 114, struct hash_op_data)
+
 #endif /* L_CRYPTODEV_H */

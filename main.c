@@ -159,8 +159,6 @@ __crypto_run_std(struct csession *ses_ptr, struct crypt_op *cop)
 	return ret;
 }
 
-
-
 /* This is the main crypto function - zero-copy edition */
 static int
 __crypto_run_zc(struct csession *ses_ptr, struct kernel_crypt_op *kcop)
@@ -839,5 +837,42 @@ int crypto_run(struct fcrypt *fcr, struct kernel_crypt_op *kcop)
 
 out_unlock:
 	crypto_put_session(ses_ptr);
+	return ret;
+}
+
+int hash_run(struct kernel_hash_op *khop)
+{
+	struct hash_op_data *hash_op = &khop->hash_op;
+	struct csession *ses_ptr = hash_op->ses;
+	struct hash_data *hdata = &ses_ptr->hdata;
+	int ret;
+	struct scatterlist *src_sg;
+	struct scatterlist *dst_sg; /* required by get_userbuf but not used */
+
+	if (hash_op->len == 0) {
+		src_sg = NULL;
+	} else {
+		ret = get_userbuf(ses_ptr, hash_op->src, hash_op->len, NULL, 0,
+				khop->task, khop->mm, &src_sg, &dst_sg);
+		if (unlikely(ret)) {
+			derr(1, "Error getting user pages");
+			return ret;
+		}
+	}
+
+	ahash_request_set_crypt(hdata->async.request, src_sg, khop->hash_output, hash_op->len);
+
+	ret = crypto_ahash_digest(hdata->async.request);
+	if (ret == -EINPROGRESS || ret == -EBUSY) {
+		wait_for_completion(&hdata->async.result.completion);
+		ret = hdata->async.result.err;
+		if (ret != 0) {
+			derr(0, "CryptoAPI failure: %d", ret);
+		}
+	}
+
+	khop->digestsize = ses_ptr->hdata.digestsize;
+
+	release_user_pages(ses_ptr);
 	return ret;
 }

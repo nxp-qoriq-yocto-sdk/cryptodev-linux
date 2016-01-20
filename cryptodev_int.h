@@ -129,6 +129,18 @@ struct compat_crypt_auth_op {
 	uint32_t	iv_len;
 };
 
+struct compat_hash_op_data {
+	compat_uptr_t	ses;
+	uint32_t	mac_op;		/* cryptodev_crypto_op_t */
+	compat_uptr_t	mackey;
+	uint32_t	mackeylen;
+
+	uint16_t	flags;		/* see COP_FLAG_* */
+	uint32_t	len;		/* length of source data */
+	compat_uptr_t	src;		/* source data */
+	compat_uptr_t	mac_result;
+};
+
 /* compat ioctls, defined for the above structs */
 #define COMPAT_CIOCGSESSION    _IOWR('c', 102, struct compat_session_op)
 #define COMPAT_CIOCCRYPT       _IOWR('c', 104, struct compat_crypt_op)
@@ -139,7 +151,7 @@ struct compat_crypt_auth_op {
 #define COMPAT_CIOCASYMASYNCRYPT    _IOW('c', 110, struct compat_crypt_kop)
 #define COMPAT_CIOCASYMFETCHCOOKIE    _IOR('c', 111, \
 				struct compat_pkc_cookie_list_s)
-
+#define COMPAT_CIOCHASH	_IOWR('c', 114, struct compat_hash_op_data)
 #endif /* CONFIG_COMPAT */
 
 /* kernel-internal extension to struct crypt_kop */
@@ -160,6 +172,15 @@ struct kernel_crypt_op {
 	int digestsize;
 	uint8_t hash_output[AALG_MAX_RESULT_LEN];
 
+	struct task_struct *task;
+	struct mm_struct *mm;
+};
+
+struct kernel_hash_op {
+	struct hash_op_data hash_op;
+
+	int digestsize;
+	uint8_t hash_output[AALG_MAX_RESULT_LEN];
 	struct task_struct *task;
 	struct mm_struct *mm;
 };
@@ -192,6 +213,7 @@ int kcaop_to_user(struct kernel_crypt_auth_op *kcaop,
 		struct fcrypt *fcr, void __user *arg);
 int crypto_auth_run(struct fcrypt *fcr, struct kernel_crypt_auth_op *kcaop);
 int crypto_run(struct fcrypt *fcr, struct kernel_crypt_op *kcop);
+int hash_run(struct kernel_hash_op *khop);
 
 #include <cryptlib.h>
 
