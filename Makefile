@@ -13,16 +13,16 @@ cryptodev-objs = ioctl.o main.o cryptlib.o authenc.o zc.o util.o
 
 obj-m += cryptodev.o
 
-KERNEL_MAKE_OPTS := -C ${KERNEL_DIR} SUBDIRS=`pwd`
-ifneq (${ARCH},)
-KERNEL_MAKE_OPTS += ARCH=${ARCH}
+KERNEL_MAKE_OPTS := -C $(KERNEL_DIR) M=$(PWD)
+ifneq ($(ARCH),)
+KERNEL_MAKE_OPTS += ARCH=$(ARCH)
 endif
-ifneq (${CROSS_COMPILE},)
-KERNEL_MAKE_OPTS += CROSS_COMPILE=${CROSS_COMPILE}
+ifneq ($(CROSS_COMPILE),)
+KERNEL_MAKE_OPTS += CROSS_COMPILE=$(CROSS_COMPILE)
 endif
 
 build: version.h
-	make ${KERNEL_MAKE_OPTS} modules
+	$(MAKE) $(KERNEL_MAKE_OPTS) modules
 
 version.h: Makefile
 	@echo "#define VERSION \"$(VERSION)\"" > version.h
@@ -30,28 +30,28 @@ version.h: Makefile
 install: modules_install
 
 modules_install:
-	make -C $(KERNEL_DIR) SUBDIRS=`pwd` modules_install
+	$(MAKE) -C $(KERNEL_DIR) M=$(PWD) modules_install
 	@echo "Installing cryptodev.h in $(PREFIX)/usr/include/crypto ..."
 	@install -D crypto/cryptodev.h $(PREFIX)/usr/include/crypto/cryptodev.h
 
 clean:
-	make -C $(KERNEL_DIR) SUBDIRS=`pwd` clean
+	$(MAKE) -C $(KERNEL_DIR) M=$(PWD) clean
 	rm -f $(hostprogs) *~
-	CFLAGS=$(CRYPTODEV_CFLAGS) KERNEL_DIR=$(KERNEL_DIR) make -C tests clean
+	CFLAGS=$(CRYPTODEV_CFLAGS) KERNEL_DIR=$(KERNEL_DIR) $(MAKE) -C tests clean
 
 check:
-	CFLAGS=$(CRYPTODEV_CFLAGS) KERNEL_DIR=$(KERNEL_DIR) make -C tests check
+	CFLAGS=$(CRYPTODEV_CFLAGS) KERNEL_DIR=$(KERNEL_DIR) $(MAKE) -C tests check
 
 CPOPTS =
-ifneq (${SHOW_TYPES},)
+ifneq ($(SHOW_TYPES),)
 CPOPTS += --show-types
 endif
-ifneq (${IGNORE_TYPES},)
-CPOPTS += --ignore ${IGNORE_TYPES}
+ifneq ($(IGNORE_TYPES),)
+CPOPTS += --ignore $(IGNORE_TYPES)
 endif
 
 checkpatch:
-	$(KERNEL_DIR)/scripts/checkpatch.pl ${CPOPTS} --file *.c *.h
+	$(KERNEL_DIR)/scripts/checkpatch.pl $(CPOPTS) --file *.c *.h
 
 VERSIONTAG = refs/tags/cryptodev-linux-$(VERSION)
 FILEBASE = cryptodev-linux-$(VERSION)
