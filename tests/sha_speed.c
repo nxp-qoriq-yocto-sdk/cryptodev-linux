@@ -133,6 +133,62 @@ int hash_data(struct session_op *sess, int fdc, int chunksize, int alignmask)
 	return 0;
 }
 
+int digest_data(struct session_op *sess, int fdc, int chunksize, int alignmask)
+{
+	struct hash_op_data hash_op;
+	char *buffer;
+	static int val = 23;
+	struct timeval start, end;
+	double total = 0;
+	double secs, ddata, dspeed;
+	char metric[16];
+	uint8_t mac[AALG_MAX_RESULT_LEN];
+
+	if (alignmask) {
+		if (posix_memalign((void **)&buffer, alignmask + 1, chunksize)) {
+			printf("posix_memalign() failed!\n");
+			return 1;
+		}
+	} else {
+		if (!(buffer = malloc(chunksize))) {
+			perror("malloc()");
+			return 1;
+		}
+	}
+
+	printf("\tEncrypting in chunks of %d bytes: ", chunksize);
+	fflush(stdout);
+
+	memset(buffer, val++, chunksize);
+
+	must_finish = 0;
+	alarm(BUFFER_TEST_TIME);
+
+	gettimeofday(&start, NULL);
+	do {
+		memset(&hash_op, 0, sizeof(hash_op));
+		hash_op.mac_op = sess->mac;
+		hash_op.len = chunksize;
+		hash_op.src = (unsigned char *)buffer;
+		hash_op.mac_result = mac;
+
+		if (ioctl(fdc, CIOCHASH, hash_op) != 0) {
+			perror("ioctl(CIOCHASH)");
+			return 1;
+		}
+		total += chunksize;
+	} while(must_finish == 0);
+	gettimeofday(&end, NULL);
+
+	secs = udifftimeval(start, end)/ 1000000.0;
+
+	value2human(1, total, secs, &ddata, &dspeed, metric);
+	printf ("done. %.2f %s in %.2f secs: ", ddata, metric, secs);
+	printf ("%.2f %s/sec\n", dspeed, metric);
+
+	free(buffer);
+	return 0;
+}
 
 #ifdef CIOCGSESSINFO
 int get_alignmask(struct session_op *sess, int fdc)
@@ -152,6 +208,20 @@ int get_alignmask(struct session_op *sess, int fdc)
 	return siop.alignmask;
 }
 #endif
+
+
+int ciochash_session(struct session_op *sess, int fdc)
+{
+	int i;
+	int err = 0;
+
+	err = 0;
+	for(i = 0; (err == 0) && (buffer_lengths[i] != 0); i++) {
+		err = digest_data(sess, fdc, buffer_lengths[i], 0);
+	}
+
+	return err;
+}
 
 
 int hash_session(struct session_op *sess, int fdc)
@@ -193,12 +263,30 @@ int test_sha1(struct session_op *sess, int fdc)
 }
 
 
+int test_sha1_ciochash(struct session_op *sess, int fdc)
+{
+	fprintf(stderr, "Testing SHA1 CIOCHASH: \n");
+	memset(sess, 0, sizeof(sess));
+	sess->mac = CRYPTO_SHA1;
+	return ciochash_session(sess, fdc);
+}
+
+
 int test_sha256(struct session_op *sess, int fdc)
 {
 	fprintf(stderr, "Testing SHA256 Hash: \n");
 	memset(sess, 0, sizeof(sess));
 	sess->mac = CRYPTO_SHA2_256;
 	return hash_session(sess, fdc);
+}
+
+
+int test_sha256_ciochash(struct session_op *sess, int fdc)
+{
+	fprintf(stderr, "Testing SHA256 CIOCHASH: \n");
+	memset(sess, 0, sizeof(sess));
+	sess->mac = CRYPTO_SHA2_256;
+	return ciochash_session(sess, fdc);
 }
 
 
@@ -227,7 +315,9 @@ int main(void)
 
 	/* run all tests but return an eventual error */
 	err |= test_sha1(&sess, fdc);
+	err |= test_sha1_ciochash(&sess, fdc);
 	err |= test_sha256(&sess, fdc);
+	err |= test_sha256_ciochash(&sess, fdc);
 
 	close(fdc);
 	close(fd);
