@@ -1190,18 +1190,17 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 		ret = hash_run(&khop);
 		if (unlikely(ret)) {
 			dwarning(1, "Error in hash run");
-			return ret;
+			goto hash_err;
 		}
 
 		ret = copy_to_user(khop.hash_op.mac_result, khop.hash_output, khop.digestsize);
 		if (unlikely(ret)) {
 			dwarning(1, "Error in copy to user");
-			return ret;
 		}
 
-		/* put session */
+	hash_err:
 		hash_destroy_session(khop.hash_op.ses);
-		return 0;
+		return ret;
 	case CIOCAUTHCRYPT:
 		if (unlikely(ret = kcaop_from_user(&kcaop, fcr, arg))) {
 			dwarning(1, "Error copying from user");
@@ -1532,22 +1531,25 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 		ret = hash_run(&khop);
 		if (unlikely(ret)) {
 			dwarning(1, "Error in hash run");
-			return ret;
+			goto hash_err;
 		}
 
 		ret = copy_to_user(khop.hash_op.mac_result, khop.hash_output,
 				   khop.digestsize);
 		if (unlikely(ret)) {
 			dwarning(1, "Error in copy to user");
-			return ret;
+			goto hash_err;
 		}
 
-		copy_to_user(arg, &compat_hash_op_data,
+		ret = copy_to_user(arg, &compat_hash_op_data,
 			     sizeof(struct compat_hash_op_data));
+		if (unlikely(ret)) {
+			dwarning(1, "Error in copy to user");
+		}
 
-		/* put session */
+	hash_err:
 		hash_destroy_session(khop.hash_op.ses);
-		return 0;
+		return ret;
 
 	case COMPAT_CIOCAUTHCRYPT:
 		if (unlikely(ret = compat_kcaop_from_user(&kcaop, fcr, arg))) {
