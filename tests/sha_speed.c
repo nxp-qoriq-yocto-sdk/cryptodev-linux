@@ -257,7 +257,7 @@ int hash_session(struct session_op *sess, int fdc)
 int test_sha1(struct session_op *sess, int fdc)
 {
 	fprintf(stderr, "Testing SHA1 Hash: \n");
-	memset(sess, 0, sizeof(sess));
+	memset(sess, 0, sizeof(struct session_op));
 	sess->mac = CRYPTO_SHA1;
 	return hash_session(sess, fdc);
 }
@@ -266,7 +266,7 @@ int test_sha1(struct session_op *sess, int fdc)
 int test_sha1_ciochash(struct session_op *sess, int fdc)
 {
 	fprintf(stderr, "Testing SHA1 CIOCHASH: \n");
-	memset(sess, 0, sizeof(sess));
+	memset(sess, 0, sizeof(struct session_op));
 	sess->mac = CRYPTO_SHA1;
 	return ciochash_session(sess, fdc);
 }
@@ -275,7 +275,7 @@ int test_sha1_ciochash(struct session_op *sess, int fdc)
 int test_sha256(struct session_op *sess, int fdc)
 {
 	fprintf(stderr, "Testing SHA256 Hash: \n");
-	memset(sess, 0, sizeof(sess));
+	memset(sess, 0, sizeof(struct session_op));
 	sess->mac = CRYPTO_SHA2_256;
 	return hash_session(sess, fdc);
 }
@@ -284,7 +284,7 @@ int test_sha256(struct session_op *sess, int fdc)
 int test_sha256_ciochash(struct session_op *sess, int fdc)
 {
 	fprintf(stderr, "Testing SHA256 CIOCHASH: \n");
-	memset(sess, 0, sizeof(sess));
+	memset(sess, 0, sizeof(struct session_op));
 	sess->mac = CRYPTO_SHA2_256;
 	return ciochash_session(sess, fdc);
 }
