@@ -80,8 +80,10 @@ int encrypt_data(struct session_op *sess, int fdc, int chunksize, int alignmask)
 	double total = 0;
 	double secs, ddata, dspeed;
 	char metric[16];
+	int min_alignmask = sizeof(void*) - 1;
 
 	if (alignmask) {
+		alignmask = ((alignmask < min_alignmask) ? min_alignmask : alignmask);
 		if (posix_memalign((void **)&buffer, MAX(alignmask + 1, sizeof(void*)), chunksize)) {
 			printf("posix_memalign() failed! (mask %x, size: %d)\n", alignmask+1, chunksize);
 			return 1;

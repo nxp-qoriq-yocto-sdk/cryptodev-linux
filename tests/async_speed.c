@@ -232,6 +232,7 @@ int run_test(int id, struct test_params tp)
 int get_alignmask(int fdc, struct session_op *sess)
 {
 	int alignmask;
+	int min_alignmask = sizeof(void*) - 1;
 
 #ifdef CIOCGSESSINFO
 	struct session_info_op siop;
@@ -242,6 +243,9 @@ int get_alignmask(int fdc, struct session_op *sess)
 		return -EINVAL;
 	}
 	alignmask = siop.alignmask;
+	if (alignmask < min_alignmask) {
+		alignmask = min_alignmask;
+	}
 #else
 	alignmask = 0;
 #endif
