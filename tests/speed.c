@@ -206,6 +206,30 @@ int main(int argc, char** argv)
 			break;
 	}
 
+	fprintf(stderr, "\nTesting AES-256-XTS cipher: \n");
+	memset(&sess, 0, sizeof(sess));
+	sess.cipher = CRYPTO_AES_XTS;
+	sess.keylen = 32;
+	memset(keybuf, 0x42, sess.keylen);
+	sess.key = (unsigned char *)keybuf;
+	if (ioctl(fdc, CIOCGSESSION, &sess)) {
+		perror("ioctl(CIOCGSESSION)");
+		return 1;
+	}
+#ifdef CIOCGSESSINFO
+	siop.ses = sess.ses;
+	if (ioctl(fdc, CIOCGSESSINFO, &siop)) {
+		perror("ioctl(CIOCGSESSINFO)");
+		return 1;
+	}
+	alignmask = siop.alignmask;
+#endif
+
+	for (i = 512; i <= (64 * 1024); i *= 2) {
+		if (encrypt_data(&sess, fdc, i, alignmask))
+			break;
+	}
+
 	close(fdc);
 	close(fd);
 	return 0;
