@@ -1,4 +1,5 @@
 KERNEL_DIR ?= /lib/modules/$(shell uname -r)/build
+CRYPTODEV_CFLAGS += -DENABLE_ASYNC
 KBUILD_CFLAGS += -I.. $(CRYPTODEV_CFLAGS)
 CFLAGS += -I.. $(CRYPTODEV_CFLAGS)
 
