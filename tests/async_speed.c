@@ -77,12 +77,19 @@ static double udifftimeval(struct timeval start, struct timeval end)
 }
 
 static int must_finish = 0;
+static int must_exit = 0;
 static struct pollfd pfd;
 
 static void alarm_handler(int signo)
 {
         must_finish = 1;
 	pfd.events = POLLIN;
+}
+
+static void exit_handler(int signo)
+{
+	must_exit = 1;
+	printf("\nexit requested by user through ctrl+c \n");
 }
 
 static char *units[] = { "", "Ki", "Mi", "Gi", "Ti", 0};
@@ -261,6 +268,10 @@ void do_test_vectors(int fdc, struct test_params tp, struct session_op *sess)
 		encrypt_data(fdc, tp, sess);
 	} else {
 		for (i = 256; i <= (64 * 1024); i *= 2) {
+			if (must_exit) {
+				break;
+			}
+
 			tp.nvalue = i;
 			if (encrypt_data(fdc, tp, sess)) {
 				break;
@@ -422,8 +433,13 @@ int main(int argc, char **argv)
 	}
 
 	signal(SIGALRM, alarm_handler);
+	signal(SIGINT, exit_handler);
 
 	for (i = 0; i < ALG_COUNT; i++) {
+		if (must_exit) {
+			break;
+		}
+
 		if (alg_flag) {
 			if (strcmp(alg_name, ciphers[i].name) == 0) {
 				run_test(i, tp);
