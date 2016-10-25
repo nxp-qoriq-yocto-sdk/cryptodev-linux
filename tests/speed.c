@@ -74,6 +74,7 @@ int encrypt_data(struct session_op *sess, int fdc, int chunksize, int alignmask)
 {
 	struct crypt_op cop;
 	char *buffer, iv[32];
+	char mac[HASH_MAX_LEN];
 	static int val = 23;
 	struct timeval start, end;
 	double total = 0;
@@ -110,6 +111,7 @@ int encrypt_data(struct session_op *sess, int fdc, int chunksize, int alignmask)
 		cop.iv = (unsigned char *)iv;
 		cop.op = COP_ENCRYPT;
 		cop.src = cop.dst = (unsigned char *)buffer;
+		cop.mac = mac;
 
 		if (ioctl(fdc, CIOCCRYPT, &cop)) {
 			perror("ioctl(CIOCCRYPT)");
@@ -222,6 +224,29 @@ int main(int argc, char** argv)
 		perror("ioctl(CIOCGSESSINFO)");
 		return 1;
 	}
+	alignmask = siop.alignmask;
+#endif
+
+	for (i = 512; i <= (64 * 1024); i *= 2) {
+		if (encrypt_data(&sess, fdc, i, alignmask))
+			break;
+	}
+
+	fprintf(stderr, "\nTesting CRC32C hash: \n");
+	memset(&sess, 0, sizeof(sess));
+	sess.mac = CRYPTO_CRC32C;
+	if (ioctl(fdc, CIOCGSESSION, &sess)) {
+		perror("ioctl(CIOCGSESSION)");
+		return 1;
+	}
+#ifdef CIOCGSESSINFO
+	siop.ses = sess.ses;
+	if (ioctl(fdc, CIOCGSESSINFO, &siop)) {
+		perror("ioctl(CIOCGSESSINFO)");
+		return 1;
+	}
+	printf("requested hash CRYPTO_CRC32C, got %s with driver %s\n",
+			siop.hash_info.cra_name, siop.hash_info.cra_driver_name);
 	alignmask = siop.alignmask;
 #endif
 
