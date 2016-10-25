@@ -35,6 +35,7 @@
 struct test_params {
 	bool tflag;
 	bool nflag;
+	bool mflag;
 	int tvalue;
 	int nvalue;
 };
@@ -43,6 +44,7 @@ const char usage_str[] = "Usage: %s [OPTION]... <cipher>|<hash>\n"
 	"Run benchmark test for cipher or hash\n\n"
 	"  -t <secs>\t" "time to run each test (default 10 secs)\n"
 	"  -n <bytes>\t" "size of the test buffer\n"
+	"  -m\t\t" "output in a machine readable format\n"
 	"  -h\t\t" "show this help\n"
 ;
 
@@ -369,9 +371,10 @@ int main(int argc, char **argv)
 
 	tp.tflag = false;
 	tp.nflag = false;
+	tp.mflag = false;
 	alg_flag = false;
 	opterr = 0;
-	while ((c = getopt(argc, argv, "hn:t:")) != -1) {
+	while ((c = getopt(argc, argv, "hn:t:m")) != -1) {
 		switch (c) {
 		case 'n':
 			tp.nvalue = atoi(optarg);
@@ -380,6 +383,9 @@ int main(int argc, char **argv)
 		case 't':
 			tp.tvalue = atoi(optarg);
 			tp.tflag = true;
+			break;
+		case 'm':
+			tp.mflag = true;
 			break;
 		case 'h': /* no break */
 		default:
