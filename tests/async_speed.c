@@ -49,8 +49,11 @@ const char usage_str[] = "Usage: %s [OPTION]... <cipher>|<hash>\n"
 int run_null(int fdc, struct test_params tp);
 int run_aes_cbc(int fdc, struct test_params tp);
 int run_aes_xts(int fdc, struct test_params tp);
+int run_crc32c(int fdc, struct test_params tp);
+int run_sha1(int fdc, struct test_params tp);
+int run_sha256(int fdc, struct test_params tp);
 
-#define ALG_COUNT	3
+#define ALG_COUNT	6
 struct {
 	char *name;
 	int (*func)(int, struct test_params);
@@ -58,6 +61,9 @@ struct {
 	{"null",	run_null},
 	{"aes-cbc",	run_aes_cbc},
 	{"aes-xts",	run_aes_xts},
+	{"crc32c",	run_crc32c},
+	{"sha1",	run_sha1},
+	{"sha256",	run_sha256},
 };
 
 static double udifftimeval(struct timeval start, struct timeval end)
@@ -95,6 +101,7 @@ int encrypt_data(int fdc, struct test_params tp, struct session_op *sess)
 {
 	struct crypt_op cop;
 	char *buffer[64], iv[32];
+	char mac[64][HASH_MAX_LEN];
 	static int val = 23;
 	struct timeval start, end;
 	double total = 0;
@@ -108,12 +115,7 @@ int encrypt_data(int fdc, struct test_params tp, struct session_op *sess)
 	printf("\tEncrypting in chunks of %d bytes: ", tp.nvalue);
 	fflush(stdout);
 
-#ifdef CIOCGSESSINFO
 	alignmask = get_alignmask(fdc, sess);
-#else
-	alignmask = 0;
-#endif
-
 	for (rc = 0; rc < 64; rc++) {
 		if (alignmask) {
 			if (posix_memalign((void **)(buffer + rc), alignmask + 1, tp.nvalue)) {
@@ -151,6 +153,7 @@ int encrypt_data(int fdc, struct test_params tp, struct session_op *sess)
 			cop.iv = (unsigned char *)iv;
 			cop.op = COP_ENCRYPT;
 			cop.src = cop.dst = (unsigned char *)buffer[bufidx];
+			cop.mac = mac[bufidx];
 			bufidx = (bufidx + 1) % 64;
 
 			if (ioctl(fdc, CIOCASYNCCRYPT, &cop)) {
@@ -210,6 +213,8 @@ int run_test(int id, struct test_params tp)
 int get_alignmask(int fdc, struct session_op *sess)
 {
 	int alignmask;
+
+#ifdef CIOCGSESSINFO
 	struct session_info_op siop;
 
 	siop.ses = sess->ses;
@@ -217,7 +222,12 @@ int get_alignmask(int fdc, struct session_op *sess)
 		perror("ioctl(CIOCGSESSINFO)");
 		return -EINVAL;
 	}
-	return siop.alignmask;
+	alignmask = siop.alignmask;
+#else
+	alignmask = 0;
+#endif
+
+	return alignmask;
 }
 
 void do_test_vectors(int fdc, struct test_params tp, struct session_op *sess)
@@ -241,6 +251,7 @@ int run_null(int fdc, struct test_params tp)
 {
 	struct session_op sess;
 	char keybuf[32];
+	int alignmask;
 	int i;
 
 	fprintf(stderr, "Testing NULL cipher: \n");
@@ -261,6 +272,8 @@ int run_aes_cbc(int fdc, struct test_params tp)
 {
 	struct session_op sess;
 	char keybuf[32];
+	int alignmask;
+	int i;
 
 	fprintf(stderr, "\nTesting AES-128-CBC cipher: \n");
 	memset(&sess, 0, sizeof(sess));
@@ -281,8 +294,6 @@ int run_aes_xts(int fdc, struct test_params tp)
 {
 	struct session_op sess;
 	char keybuf[32];
-	int alignmask;
-	int i;
 
 	fprintf(stderr, "\nTesting AES-256-XTS cipher: \n");
 	memset(&sess, 0, sizeof(sess));
@@ -293,6 +304,54 @@ int run_aes_xts(int fdc, struct test_params tp)
 	if (ioctl(fdc, CIOCGSESSION, &sess)) {
 		perror("ioctl(CIOCGSESSION)");
 		return -EINVAL;
+	}
+
+	do_test_vectors(fdc, tp, &sess);
+	return 0;
+}
+
+int run_crc32c(int fdc, struct test_params tp)
+{
+	struct session_op sess;
+
+	fprintf(stderr, "\nTesting CRC32C hash: \n");
+	memset(&sess, 0, sizeof(sess));
+	sess.mac = CRYPTO_CRC32C;
+	if (ioctl(fdc, CIOCGSESSION, &sess)) {
+		perror("ioctl(CIOCGSESSION)");
+		return 1;
+	}
+
+	do_test_vectors(fdc, tp, &sess);
+	return 0;
+}
+
+int run_sha1(int fdc, struct test_params tp)
+{
+	struct session_op sess;
+
+	fprintf(stderr, "\nTesting SHA-1 hash: \n");
+	memset(&sess, 0, sizeof(sess));
+	sess.mac = CRYPTO_SHA1;
+	if (ioctl(fdc, CIOCGSESSION, &sess)) {
+		perror("ioctl(CIOCGSESSION)");
+		return 1;
+	}
+
+	do_test_vectors(fdc, tp, &sess);
+	return 0;
+}
+
+int run_sha256(int fdc, struct test_params tp)
+{
+	struct session_op sess;
+
+	fprintf(stderr, "\nTesting SHA2-256 hash: \n");
+	memset(&sess, 0, sizeof(sess));
+	sess.mac = CRYPTO_SHA2_256;
+	if (ioctl(fdc, CIOCGSESSION, &sess)) {
+		perror("ioctl(CIOCGSESSION)");
+		return 1;
 	}
 
 	do_test_vectors(fdc, tp, &sess);

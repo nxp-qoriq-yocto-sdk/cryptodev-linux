@@ -286,6 +286,10 @@ crypto_create_session(struct fcrypt *fcr, struct session_op *sop)
 		hash_name = "sha512";
 		hmac_mode = 0;
 		break;
+	case CRYPTO_CRC32C:
+		hash_name = "crc32c";
+		hmac_mode = 0;
+		break;
 	default:
 		ddebug(1, "bad mac: %d", sop->mac);
 		return -EINVAL;
