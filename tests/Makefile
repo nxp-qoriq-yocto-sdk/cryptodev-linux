@@ -40,6 +40,7 @@ install:
 	for prog in $(hostprogs); do \
 		install -m 755 $$prog $(DESTDIR)/$(bindir); \
 	done
+	install -m 755 async_speed_multi.sh  $(DESTDIR)/$(bindir)
 
 clean:
 	rm -f *.o *~ $(hostprogs)
