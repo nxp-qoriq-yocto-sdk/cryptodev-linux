@@ -260,6 +260,29 @@ int main(void)
 			break;
 	}
 
+	fprintf(stderr, "\nTesting SHA-1 hash: \n");
+	memset(&sess, 0, sizeof(sess));
+	sess.mac = CRYPTO_SHA1;
+	if (ioctl(fdc, CIOCGSESSION, &sess)) {
+		perror("ioctl(CIOCGSESSION)");
+		return 1;
+	}
+#ifdef CIOCGSESSINFO
+	siop.ses = sess.ses;
+	if (ioctl(fdc, CIOCGSESSINFO, &siop)) {
+		perror("ioctl(CIOCGSESSION)");
+		return 1;
+	}
+	printf("requested hash CRYPTO_SHA1, got %s with driver %s\n",
+			siop.hash_info.cra_name, siop.hash_info.cra_driver_name);
+	alignmask = siop.alignmask;
+#endif
+
+	for (i = 256; i <= (64 * 1024); i *= 2) {
+		if (encrypt_data(&sess, fdc, i, alignmask))
+			break;
+	}
+
 end:
 	close(fdc);
 	close(fd);
