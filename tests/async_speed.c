@@ -51,8 +51,8 @@ const char usage_str[] = "Usage: %s [OPTION]... <cipher>|<hash>\n"
 ;
 
 int run_null(int fdc, struct test_params tp);
-int run_aes_cbc(int fdc, struct test_params tp);
-int run_aes_xts(int fdc, struct test_params tp);
+int run_aes_128_cbc(int fdc, struct test_params tp);
+int run_aes_256_xts(int fdc, struct test_params tp);
 int run_crc32c(int fdc, struct test_params tp);
 int run_sha1(int fdc, struct test_params tp);
 int run_sha256(int fdc, struct test_params tp);
@@ -63,8 +63,8 @@ struct {
 	int (*func)(int, struct test_params);
 } ciphers[ALG_COUNT] = {
 	{"null",	run_null},
-	{"aes-cbc",	run_aes_cbc},
-	{"aes-xts",	run_aes_xts},
+	{"aes-128-cbc",	run_aes_128_cbc},
+	{"aes-256-xts",	run_aes_256_xts},
 	{"crc32c",	run_crc32c},
 	{"sha1",	run_sha1},
 	{"sha256",	run_sha256},
@@ -287,7 +287,7 @@ int run_null(int fdc, struct test_params tp)
 	return 0;
 }
 
-int run_aes_cbc(int fdc, struct test_params tp)
+int run_aes_128_cbc(int fdc, struct test_params tp)
 {
 	struct session_op sess;
 	char keybuf[32];
@@ -308,7 +308,7 @@ int run_aes_cbc(int fdc, struct test_params tp)
 	return 0;
 }
 
-int run_aes_xts(int fdc, struct test_params tp)
+int run_aes_256_xts(int fdc, struct test_params tp)
 {
 	struct session_op sess;
 	char keybuf[32];
