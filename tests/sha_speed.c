@@ -296,7 +296,6 @@ int main(void)
 	int fd;
 	int fdc;
 	int err;
-	int i;
 	struct session_op sess;
 
 	signal(SIGALRM, alarm_handler);

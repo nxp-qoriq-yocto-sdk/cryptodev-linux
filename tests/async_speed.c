@@ -284,8 +284,6 @@ int run_null(int fdc, struct test_params tp)
 {
 	struct session_op sess;
 	char keybuf[32];
-	int alignmask;
-	int i;
 
 	fprintf(stderr, "Testing NULL cipher: \n");
 	memset(&sess, 0, sizeof(sess));
@@ -305,8 +303,6 @@ int run_aes_128_cbc(int fdc, struct test_params tp)
 {
 	struct session_op sess;
 	char keybuf[32];
-	int alignmask;
-	int i;
 
 	memset(&sess, 0, sizeof(sess));
 	sess.cipher = CRYPTO_AES_CBC;
@@ -390,7 +386,6 @@ int main(int argc, char **argv)
 {
 	int i;
 	int c;
-	int index;
 	bool alg_flag;
 	char *alg_name;
 	struct test_params tp;
