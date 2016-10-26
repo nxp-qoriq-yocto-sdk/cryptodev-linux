@@ -58,7 +58,8 @@ function run_parallel
     OPTIONS="-t $tvalue -n $nvalue -m"
     CMD="async_speed $OPTIONS $alg_name"
 
-    echo "Running $mvalue threads in parallel:"
+    echo
+    echo "Running $tvalue seconds $mvalue threads in parallel:"
     echo "    $CMD"
 
     (sleep 1; mpstat 1 $(($tvalue-2))) &> $MPSTAT_OUT &
