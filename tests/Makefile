@@ -1,6 +1,4 @@
-KERNEL_DIR ?= /lib/modules/$(shell uname -r)/build
 CRYPTODEV_CFLAGS += -DENABLE_ASYNC -Wall -Werror
-KBUILD_CFLAGS += -I.. $(CRYPTODEV_CFLAGS)
 CFLAGS += -I.. $(CRYPTODEV_CFLAGS)
 
 comp_progs := cipher_comp hash_comp hmac_comp
