@@ -21,6 +21,7 @@
 
 NUM_CORES=`nproc`
 OUT_BASENAME="async_speed"
+S_TIME_FORMAT=ISO
 MPSTAT="mpstat"
 MPSTAT_OUT="mpstat_out"
 
@@ -47,10 +48,8 @@ function get_cpu_idle
     header_line=`grep %idle ${MPSTAT_OUT} | head -n 1 | sed 's/\s\+/ /g'`
     idle_column=`echo $header_line | wc -w`
 
-    all_cpu_idle=`grep all ${MPSTAT_OUT} | tail -n +2 | sed 's/\s\+/ /g' | cut -d' ' -f ${idle_column} | SUM`
-    mpstat_lines=`grep all ${MPSTAT_OUT} | tail -n +2 | wc -l`
-    
-    average_idle=`echo "scale=2; $all_cpu_idle / $mpstat_lines" | bc -l`
+    average_idle=`grep Average ${MPSTAT_OUT} | sed 's/\s\+/ /g' | cut -d' ' -f ${idle_column} | tail -n 1`
+
     echo $average_idle
 }
 
