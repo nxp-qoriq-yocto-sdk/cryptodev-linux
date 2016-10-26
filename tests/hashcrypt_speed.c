@@ -25,6 +25,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <signal.h>
+#include <unistd.h>
 #include <crypto/cryptodev.h>
 
 #define MAX(x,y) ((x)>(y)?(x):(y))

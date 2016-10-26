@@ -112,6 +112,29 @@ static void value2machine(uint64_t bytes, double time, double* speed)
 	*speed = bytes / time;
 }
 
+int get_alignmask(int fdc, struct session_op *sess)
+{
+	int alignmask;
+	int min_alignmask = sizeof(void*) - 1;
+
+#ifdef CIOCGSESSINFO
+	struct session_info_op siop;
+
+	siop.ses = sess->ses;
+	if (ioctl(fdc, CIOCGSESSINFO, &siop)) {
+		perror("ioctl(CIOCGSESSINFO)");
+		return -EINVAL;
+	}
+	alignmask = siop.alignmask;
+	if (alignmask < min_alignmask) {
+		alignmask = min_alignmask;
+	}
+#else
+	alignmask = 0;
+#endif
+
+	return alignmask;
+}
 
 int encrypt_data(int fdc, struct test_params tp, struct session_op *sess)
 {
@@ -234,30 +257,6 @@ int run_test(int id, struct test_params tp)
 
 	close(fdc);
 	close(fd);
-}
-
-int get_alignmask(int fdc, struct session_op *sess)
-{
-	int alignmask;
-	int min_alignmask = sizeof(void*) - 1;
-
-#ifdef CIOCGSESSINFO
-	struct session_info_op siop;
-
-	siop.ses = sess->ses;
-	if (ioctl(fdc, CIOCGSESSINFO, &siop)) {
-		perror("ioctl(CIOCGSESSINFO)");
-		return -EINVAL;
-	}
-	alignmask = siop.alignmask;
-	if (alignmask < min_alignmask) {
-		alignmask = min_alignmask;
-	}
-#else
-	alignmask = 0;
-#endif
-
-	return alignmask;
 }
 
 void do_test_vectors(int fdc, struct test_params tp, struct session_op *sess)
