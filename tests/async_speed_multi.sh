@@ -93,7 +93,7 @@ function run_parallel
     echo
     echo "buffer size  :   $nvalue"
     echo "running time :   $runtime"
-    echo "avg_speed    :   $avg_speed GiB/s"
+    echo "avg_speed    :   $avg_speed GB/s"
     echo "all_cpu idle :   $cpu_idle %"
     echo
 }
