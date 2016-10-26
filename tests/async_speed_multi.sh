@@ -22,7 +22,6 @@
 NUM_CORES=`nproc`
 OUT_BASENAME="async_speed"
 S_TIME_FORMAT=ISO
-MPSTAT="mpstat"
 MPSTAT_OUT="mpstat_out"
 
 function usage
@@ -47,7 +46,6 @@ function get_cpu_idle
 {
     header_line=`grep %idle ${MPSTAT_OUT} | head -n 1 | sed 's/\s\+/ /g'`
     idle_column=`echo $header_line | wc -w`
-
     average_idle=`grep Average ${MPSTAT_OUT} | sed 's/\s\+/ /g' | cut -d' ' -f ${idle_column} | tail -n 1`
 
     echo $average_idle
@@ -63,7 +61,7 @@ function run_parallel
     echo "Running $mvalue threads in parallel:"
     echo "    $CMD"
 
-    $MPSTAT 1 $(($tvalue-1)) &> $MPSTAT_OUT &
+    (sleep 1; mpstat 1 $(($tvalue-2))) &> $MPSTAT_OUT &
     MPSTAT_PID=$!
 
     PIDS=""
@@ -125,6 +123,8 @@ function main
 	[ -z "$tvalue" ] && tvalue=10      # 10 seconds per test by default
 	[ -z "$mvalue" ] && mvalue=`nproc` # thread count defaults to nproc
 	[ -z "$nvalue" ] && nvalue=256     # 256 bytes default buffer size
+
+	[ "$tvalue" -lt 5 ] && tvalue=5
 
 	case "$alg_name" in
 	    "null"    |\
