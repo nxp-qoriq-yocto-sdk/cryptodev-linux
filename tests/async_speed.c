@@ -239,6 +239,7 @@ int run_test(int id, struct test_params tp)
 {
 	int fd;
 	int fdc;
+	int err;
 
 	fd = open("/dev/crypto", O_RDWR, 0);
 	if (fd < 0) {
@@ -253,10 +254,12 @@ int run_test(int id, struct test_params tp)
 	if (!tp.mflag) {
 		fprintf(stderr, "Testing %s:\n", ciphers[id].name);
 	}
-	ciphers[id].func(fdc, tp);
+	err = ciphers[id].func(fdc, tp);
 
 	close(fdc);
 	close(fd);
+
+	return err;
 }
 
 void do_test_vectors(int fdc, struct test_params tp, struct session_op *sess)
@@ -384,6 +387,7 @@ int run_sha256(int fdc, struct test_params tp)
 
 int main(int argc, char **argv)
 {
+	int err = 0;
 	int i;
 	int c;
 	bool alg_flag;
@@ -436,14 +440,17 @@ int main(int argc, char **argv)
 
 		if (alg_flag) {
 			if (strcmp(alg_name, ciphers[i].name) == 0) {
-				run_test(i, tp);
+				err = run_test(i, tp);
 			}
 		} else {
-			run_test(i, tp);
+			err = run_test(i, tp);
+			if (err != 0) {
+				break;
+			}
 		}
 	}
 
-	return 0;
+	return err;
 }
 
 #else
