@@ -61,7 +61,7 @@ test_crypto(int cfd)
 
 	cryp.ses = sess.ses;
 	cryp.len = sizeof("what do ya want for nothing?")-1;
-	cryp.src = "what do ya want for nothing?";
+	cryp.src = (uint8_t*)"what do ya want for nothing?";
 	cryp.mac = mac;
 	cryp.op = COP_ENCRYPT;
 
@@ -98,7 +98,7 @@ test_crypto(int cfd)
 
 	cryp.ses = sess.ses;
 	cryp.len = sizeof("what do ya want for nothing?")-1;
-	cryp.src = "what do ya want for nothing?";
+	cryp.src = (uint8_t*)"what do ya want for nothing?";
 	cryp.mac = mac;
 	cryp.op = COP_ENCRYPT;
 
@@ -208,7 +208,7 @@ test_extras(int cfd)
 
 	cryp.ses = sess.ses;
 	cryp.len = sizeof("what do")-1;
-	cryp.src = "what do";
+	cryp.src = (uint8_t*)"what do";
 	cryp.mac = mac;
 	cryp.op = COP_ENCRYPT;
 	cryp.flags = COP_FLAG_UPDATE;
@@ -218,7 +218,7 @@ test_extras(int cfd)
 
 	cryp.ses = sess.ses;
 	cryp.len = sizeof(" ya want for nothing?")-1;
-	cryp.src = " ya want for nothing?";
+	cryp.src = (uint8_t*)" ya want for nothing?";
 	cryp.mac = mac;
 	cryp.op = COP_ENCRYPT;
 	cryp.flags = COP_FLAG_FINAL;

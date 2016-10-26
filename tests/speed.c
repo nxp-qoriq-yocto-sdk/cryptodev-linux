@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include <crypto/cryptodev.h>
 
@@ -75,7 +76,7 @@ int encrypt_data(struct session_op *sess, int fdc, int chunksize, int alignmask)
 {
 	struct crypt_op cop;
 	char *buffer, iv[32];
-	char mac[HASH_MAX_LEN];
+	uint8_t mac[HASH_MAX_LEN];
 	static int val = 23;
 	struct timeval start, end;
 	double total = 0;

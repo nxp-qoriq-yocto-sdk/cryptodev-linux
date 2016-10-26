@@ -140,7 +140,7 @@ int encrypt_data(int fdc, struct test_params tp, struct session_op *sess)
 {
 	struct crypt_op cop;
 	char *buffer[64], iv[32];
-	char mac[64][HASH_MAX_LEN];
+	uint8_t mac[64][HASH_MAX_LEN];
 	static int val = 23;
 	struct timeval start, end;
 	uint64_t total = 0;

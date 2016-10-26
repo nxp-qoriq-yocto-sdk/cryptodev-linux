@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include <crypto/cryptodev.h>
 
@@ -74,7 +75,7 @@ static void value2human(int si, double bytes, double time, double* data, double*
 int encrypt_data(int algo, void* keybuf, int key_size, int fdc, int chunksize)
 {
 	struct crypt_op cop;
-	char *buffer, iv[32];
+	uint8_t *buffer, iv[32];
 	static int val = 23;
 	struct timeval start, end;
 	double total = 0;

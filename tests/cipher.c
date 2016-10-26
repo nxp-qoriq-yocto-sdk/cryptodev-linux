@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdint.h>
 
 #include <sys/ioctl.h>
 #include <crypto/cryptodev.h>
@@ -21,10 +22,10 @@ static int debug = 0;
 static int
 test_crypto(int cfd)
 {
-	char plaintext_raw[DATA_SIZE + 63], *plaintext;
-	char ciphertext_raw[DATA_SIZE + 63], *ciphertext;
-	char iv[BLOCK_SIZE];
-	char key[KEY_SIZE];
+	uint8_t plaintext_raw[DATA_SIZE + 63], *plaintext;
+	uint8_t ciphertext_raw[DATA_SIZE + 63], *ciphertext;
+	uint8_t iv[BLOCK_SIZE];
+	uint8_t key[KEY_SIZE];
 
 	struct session_op sess;
 #ifdef CIOCGSESSINFO
@@ -57,8 +58,8 @@ test_crypto(int cfd)
 		printf("requested cipher CRYPTO_AES_CBC, got %s with driver %s\n",
 			siop.cipher_info.cra_name, siop.cipher_info.cra_driver_name);
 
-	plaintext = (char *)(((unsigned long)plaintext_raw + siop.alignmask) & ~siop.alignmask);
-	ciphertext = (char *)(((unsigned long)ciphertext_raw + siop.alignmask) & ~siop.alignmask);
+	plaintext = (uint8_t *)(((unsigned long)plaintext_raw + siop.alignmask) & ~siop.alignmask);
+	ciphertext = (uint8_t *)(((unsigned long)ciphertext_raw + siop.alignmask) & ~siop.alignmask);
 #else
 	plaintext = plaintext_raw;
 	ciphertext = ciphertext_raw;
@@ -143,15 +144,15 @@ test_crypto(int cfd)
 
 static int test_aes(int cfd)
 {
-	char plaintext1_raw[BLOCK_SIZE + 63], *plaintext1;
-	char ciphertext1[BLOCK_SIZE] = { 0xdf, 0x55, 0x6a, 0x33, 0x43, 0x8d, 0xb8, 0x7b, 0xc4, 0x1b, 0x17, 0x52, 0xc5, 0x5e, 0x5e, 0x49 };
-	char iv1[BLOCK_SIZE];
-	char key1[KEY_SIZE] = { 0xff, 0xff, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	char plaintext2_data[BLOCK_SIZE] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc0, 0x00 };
-	char plaintext2_raw[BLOCK_SIZE + 63], *plaintext2;
-	char ciphertext2[BLOCK_SIZE] = { 0xb7, 0x97, 0x2b, 0x39, 0x41, 0xc4, 0x4b, 0x90, 0xaf, 0xa7, 0xb2, 0x64, 0xbf, 0xba, 0x73, 0x87 };
-	char iv2[BLOCK_SIZE];
-	char key2[KEY_SIZE];
+	uint8_t plaintext1_raw[BLOCK_SIZE + 63], *plaintext1;
+	uint8_t ciphertext1[BLOCK_SIZE] = { 0xdf, 0x55, 0x6a, 0x33, 0x43, 0x8d, 0xb8, 0x7b, 0xc4, 0x1b, 0x17, 0x52, 0xc5, 0x5e, 0x5e, 0x49 };
+	uint8_t iv1[BLOCK_SIZE];
+	uint8_t key1[KEY_SIZE] = { 0xff, 0xff, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	uint8_t plaintext2_data[BLOCK_SIZE] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc0, 0x00 };
+	uint8_t plaintext2_raw[BLOCK_SIZE + 63], *plaintext2;
+	uint8_t ciphertext2[BLOCK_SIZE] = { 0xb7, 0x97, 0x2b, 0x39, 0x41, 0xc4, 0x4b, 0x90, 0xaf, 0xa7, 0xb2, 0x64, 0xbf, 0xba, 0x73, 0x87 };
+	uint8_t iv2[BLOCK_SIZE];
+	uint8_t key2[KEY_SIZE];
 
 	struct session_op sess;
 #ifdef CIOCGSESSINFO
@@ -176,7 +177,7 @@ static int test_aes(int cfd)
 		perror("ioctl(CIOCGSESSINFO)");
 		return 1;
 	}
-	plaintext1 = (char *)(((unsigned long)plaintext1_raw + siop.alignmask) & ~siop.alignmask);
+	plaintext1 = (uint8_t *)(((unsigned long)plaintext1_raw + siop.alignmask) & ~siop.alignmask);
 #else
 	plaintext1 = plaintext1_raw;
 #endif
@@ -226,7 +227,7 @@ static int test_aes(int cfd)
 		printf("requested cipher CRYPTO_AES_CBC, got %s with driver %s\n",
 			siop.cipher_info.cra_name, siop.cipher_info.cra_driver_name);
 
-	plaintext2 = (char *)(((unsigned long)plaintext2_raw + siop.alignmask) & ~siop.alignmask);
+	plaintext2 = (uint8_t *)(((unsigned long)plaintext2_raw + siop.alignmask) & ~siop.alignmask);
 #else
 	plaintext2 = plaintext2_raw;
 #endif
