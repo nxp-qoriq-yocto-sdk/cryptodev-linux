@@ -117,7 +117,8 @@ function control_c
 
 function main
 {
-	[ ! -e "/dev/crypto" ] && sudo modprobe cryptodev || modprobe cryptodev || exit 1
+	[ ! -e "/dev/crypto" ] &&
+		(sudo modprobe cryptodev || modprobe cryptodev || exit 1)
 
 	rm -f ${OUT_BASENAME}_*
 	rm -f ${MPSTAT_OUT}
