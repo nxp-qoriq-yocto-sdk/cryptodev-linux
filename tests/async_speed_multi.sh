@@ -85,7 +85,7 @@ function run_parallel
 
     wait $MPSTAT_PID
 
-    runtime=$(echo "scale=2; $end - $start" | bc -l )
+    runtime=$(echo "scale=2; ($end - $start) / 1" | bc -l )
     total_data=`cat ${OUT_BASENAME}_* | cut -f 1 | SUM`
     avg_speed=$(echo "scale=2; $total_data / $runtime / 1000000000" | bc -l)
     cpu_idle=`get_cpu_idle`
