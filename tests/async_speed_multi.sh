@@ -20,6 +20,7 @@
 # no user-configurable options below this line
 
 NUM_CORES=$(nproc)
+CMD_BIN="async_speed"
 OUT_BASENAME="async_speed"
 MPSTAT_OUT="mpstat_out"
 
@@ -56,7 +57,7 @@ function run_parallel
     trap control_c SIGINT
 
     OPTIONS="-t $tvalue -n $nvalue -m"
-    CMD="async_speed $OPTIONS $alg_name"
+    CMD="$CMD_BIN $OPTIONS $alg_name"
 
     if [ ! -z "$vvalue" ]
     then
@@ -119,6 +120,13 @@ function main
 {
 	[ ! -e "/dev/crypto" ] &&
 		(sudo modprobe cryptodev || modprobe cryptodev || exit 1)
+
+	$(which ${CMD_BIN} &> /dev/null)
+	if (($? != 0))
+	then
+		echo "${CMD_BIN} test is not installed"
+		exit 1
+	fi
 
 	rm -f ${OUT_BASENAME}_*
 	rm -f ${MPSTAT_OUT}
