@@ -3,7 +3,7 @@
 # disabled by default. To re-enable it uncomment the
 # corresponding CFLAG.
 #
-CRYPTODEV_CFLAGS += -DENABLE_ASYNC
+CRYPTODEV_CFLAGS += -DENABLE_ASYNC -std=gnu90
 KBUILD_CFLAGS += -I$(src) $(CRYPTODEV_CFLAGS)
 KERNEL_DIR ?= /lib/modules/$(shell uname -r)/build
 VERSION = 1.8
@@ -38,10 +38,10 @@ modules_install:
 clean:
 	$(MAKE) $(KERNEL_MAKE_OPTS) clean
 	rm -f $(hostprogs) *~
-	CFLAGS=$(CRYPTODEV_CFLAGS) KERNEL_DIR=$(KERNEL_DIR) $(MAKE) -C tests clean
+	CFLAGS="$(CRYPTODEV_CFLAGS)" KERNEL_DIR="$(KERNEL_DIR)" $(MAKE) -C tests clean
 
 check:
-	CFLAGS=$(CRYPTODEV_CFLAGS) KERNEL_DIR=$(KERNEL_DIR) $(MAKE) -C tests check
+	CFLAGS="$(CRYPTODEV_CFLAGS)" KERNEL_DIR="$(KERNEL_DIR)" $(MAKE) -C tests check
 
 CPOPTS =
 ifneq ($(SHOW_TYPES),)
