@@ -21,7 +21,6 @@
 
 NUM_CORES=$(nproc)
 OUT_BASENAME="async_speed"
-S_TIME_FORMAT=ISO
 MPSTAT_OUT="mpstat_out"
 
 function usage
@@ -62,7 +61,7 @@ function run_parallel
     echo "Running $tvalue seconds $mvalue threads in parallel:"
     echo "    $CMD"
 
-    (sleep 1; mpstat 1 $(($tvalue-2))) &> $MPSTAT_OUT &
+    (sleep 1; S_TIME_FORMAT=ISO mpstat 1 $(($tvalue-2))) &> $MPSTAT_OUT &
     MPSTAT_PID=$!
 
     PIDS=""
