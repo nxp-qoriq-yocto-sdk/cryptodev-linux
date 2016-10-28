@@ -24,6 +24,10 @@ CMD_BIN="async_speed"
 OUT_BASENAME="async_speed"
 MPSTAT_OUT="mpstat_out"
 
+# A bigger hammer for mpstat to use ISO8601 time format (fixed in 11.2.2)
+export LC_TIME=en_GB.UTF-8 &> /dev/null
+
+
 function usage
 {
 cat << EOF
