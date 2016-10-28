@@ -96,8 +96,8 @@ function run_parallel
 	echo "all_cpu idle :   $cpu_idle %"
 	echo
     else
-	echo -e "algorithm\t""threads\t""runtime\t"\
-	     "buf_size\t""GB/s\t""%cpu_idle"
+	echo -e "algorithm\t""threads\t""run time\t"\
+	     "buffer size\t""GB/s\t""%cpu idle"
 	echo -e "${alg_name}\t${mvalue}\t${runtime}\t"\
 	     "${nvalue}\t${avg_speed}\t${cpu_idle}"
     fi
