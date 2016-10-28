@@ -39,6 +39,7 @@ install:
 		install -m 755 $$prog $(DESTDIR)/$(bindir); \
 	done
 	install -m 755 async_speed_multi.sh  $(DESTDIR)/$(bindir)
+	install -m 755 run_crypto_tests.sh  $(DESTDIR)/$(bindir)
 
 clean:
 	rm -f *.o *~ $(hostprogs)
