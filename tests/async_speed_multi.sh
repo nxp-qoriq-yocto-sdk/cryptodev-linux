@@ -40,6 +40,8 @@ Usage: `basename $0` [OPTIONS] <alg_name>
   -h              show this help
 
 alg_name: null, aes-128-cbc, aes-256-xts, sha1, sha256, crc32c
+
+Note: SEC driver is configured to support buffers smaller than 512K
 EOF
 }
 

@@ -47,7 +47,8 @@ const char usage_str[] = "Usage: %s [OPTION]... <cipher>|<hash>\n"
 	"  -t <secs>\t" "time to run each test (default 10 secs)\n"
 	"  -n <bytes>\t" "size of the test buffer\n"
 	"  -m\t\t" "output in a machine readable format\n"
-	"  -h\t\t" "show this help\n"
+	"  -h\t\t" "show this help\n\n"
+	"Note: SEC driver is configured to support buffers smaller than 512K\n"
 ;
 
 int run_null(int fdc, struct test_params tp);
