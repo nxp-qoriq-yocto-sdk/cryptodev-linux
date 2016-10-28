@@ -3,14 +3,14 @@ CFLAGS += -I.. $(CRYPTODEV_CFLAGS)
 
 comp_progs := cipher_comp hash_comp hmac_comp
 
-hostprogs := cipher cipher-aead hmac speed async_cipher async_hmac \
+hostprogs := cipher cipher-aead hmac sync_speed async_cipher async_hmac \
 	async_speed sha_speed hashcrypt_speed fullspeed cipher-gcm \
 	cipher-aead-srtp $(comp_progs)
 
 example-cipher-objs := cipher.o
 example-cipher-aead-objs := cipher-aead.o
 example-hmac-objs := hmac.o
-example-speed-objs := speed.c
+example-speed-objs := sync_speed.o
 example-fullspeed-objs := fullspeed.c
 example-sha-speed-objs := sha_speed.c
 example-async-cipher-objs := async_cipher.o
