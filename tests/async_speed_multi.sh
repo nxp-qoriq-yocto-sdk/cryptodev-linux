@@ -82,6 +82,13 @@ function run_parallel
 
     wait $MPSTAT_PID
 
+    grep "ioctl" ${OUT_BASENAME}_* &> /dev/null
+    if (($? == 0))
+    then
+	echo "cryptodev is not built with -DENABLE_ASYNC flag"
+	exit 1
+    fi
+
     runtime=$(echo "scale=2; ($end - $start) / 1" | bc -l )
     total_data=$(cat ${OUT_BASENAME}_* | cut -f 1 | SUM)
     avg_speed=$(echo "scale=2; $total_data / $runtime / 1000000000" | bc -l)
