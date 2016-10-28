@@ -59,13 +59,6 @@ function run_parallel
     OPTIONS="-t $tvalue -n $nvalue -m"
     CMD="$CMD_BIN $OPTIONS $alg_name"
 
-    if [ ! -z "$vvalue" ]
-    then
-       echo
-       echo "Running $tvalue seconds $mvalue threads in parallel:"
-       echo "    $CMD"
-    fi
-
     (sleep 1; S_TIME_FORMAT=ISO mpstat 1 $(($tvalue-2))) &> $MPSTAT_OUT &
     MPSTAT_PID=$!
 
