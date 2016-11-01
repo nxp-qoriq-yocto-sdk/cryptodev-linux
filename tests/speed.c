@@ -29,10 +29,15 @@
 #include <crypto/cryptodev.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <stdint.h>
+#include <inttypes.h>
+
 
 struct test_params {
 	bool tflag;
 	bool nflag;
+	bool mflag;
+	bool aflag;
 	int tvalue;
 	int nvalue;
 };
@@ -41,6 +46,8 @@ const char usage_str[] = "Usage: %s [OPTION]... <cipher>|<hash>\n"
 	"Run benchmark test for cipher or hash\n\n"
 	"  -t <secs>\t" "time to run each test (default 10 secs)\n"
 	"  -n <bytes>\t" "size of the test buffer\n"
+	"  -m\t\t" "output in a machine readable format\n"
+	"  -a\t\t" "run the async tests (default sync)\n"
 	"  -h\t\t" "show this help\n\n"
 	"Note: SEC driver is configured to support buffers smaller than 512K\n"
 ;
@@ -51,7 +58,6 @@ int run_aes_256_xts(int fdc, struct test_params tp);
 int run_crc32c(int fdc, struct test_params tp);
 int run_sha1(int fdc, struct test_params tp);
 int run_sha256(int fdc, struct test_params tp);
-int get_alignmask(int fdc, struct session_op *sess);
 
 #define ALG_COUNT	6
 struct {
@@ -74,10 +80,12 @@ static double udifftimeval(struct timeval start, struct timeval end)
 
 static volatile int must_finish;
 static volatile int must_exit;
+static struct pollfd pfd;
 
 static void alarm_handler(int signo)
 {
         must_finish = 1;
+	pfd.events = POLLIN;
 }
 
 static void exit_handler(int signo)
@@ -88,7 +96,7 @@ static void exit_handler(int signo)
 
 static char *units[] = { "", "Ki", "Mi", "Gi", "Ti", 0};
 
-static void value2human(double bytes, double time, double* data, double* speed,char* metric)
+static void value2human(uint64_t bytes, double time, double* data, double* speed,char* metric)
 {
 	int unit = 0;
 
@@ -101,14 +109,138 @@ static void value2human(double bytes, double time, double* data, double* speed,c
 	sprintf(metric, "%sB", units[unit]);
 }
 
-static int encrypt_data(int fdc, struct test_params tp, struct session_op *sess)
+static void value2machine(uint64_t bytes, double time, double* speed)
+{
+	*speed = bytes / time;
+}
+
+int get_alignmask(int fdc, struct session_op *sess)
+{
+	int alignmask;
+	int min_alignmask = sizeof(void*) - 1;
+
+#ifdef CIOCGSESSINFO
+	struct session_info_op siop;
+
+	siop.ses = sess->ses;
+	if (ioctl(fdc, CIOCGSESSINFO, &siop)) {
+		perror("ioctl(CIOCGSESSINFO)");
+		return -EINVAL;
+	}
+	alignmask = siop.alignmask;
+	if (alignmask < min_alignmask) {
+		alignmask = min_alignmask;
+	}
+#else
+	alignmask = 0;
+#endif
+
+	return alignmask;
+}
+
+int encrypt_async(int fdc, struct test_params tp, struct session_op *sess)
+{
+	struct crypt_op cop;
+	char *buffer[64], iv[32];
+	uint8_t mac[64][HASH_MAX_LEN];
+	static int val = 23;
+	struct timeval start, end;
+	uint64_t total = 0;
+	double secs, ddata, dspeed;
+	char metric[16];
+	int rc, wqueue = 0, bufidx = 0;
+	int alignmask;
+
+	memset(iv, 0x23, 32);
+
+	if (!tp.mflag) {
+		printf("\tBuffer size %d bytes: ", tp.nvalue);
+		fflush(stdout);
+	}
+
+	alignmask = get_alignmask(fdc, sess);
+	for (rc = 0; rc < 64; rc++) {
+		if (alignmask) {
+			if (posix_memalign((void **)(buffer + rc), alignmask + 1, tp.nvalue)) {
+				printf("posix_memalign() failed!\n");
+				return 1;
+			}
+		} else {
+			if (!(buffer[rc] = malloc(tp.nvalue))) {
+				perror("malloc()");
+				return 1;
+			}
+		}
+		memset(buffer[rc], val++, tp.nvalue);
+	}
+	pfd.fd = fdc;
+	pfd.events = POLLOUT | POLLIN;
+
+	must_finish = 0;
+	alarm(tp.tvalue);
+
+	gettimeofday(&start, NULL);
+	do {
+		if ((rc = poll(&pfd, 1, 100)) < 0) {
+			if (errno & (ERESTART | EINTR))
+				continue;
+			fprintf(stderr, "errno = %d ", errno);
+			perror("poll()");
+			return 1;
+		}
+
+		if (pfd.revents & POLLOUT) {
+			memset(&cop, 0, sizeof(cop));
+			cop.ses = sess->ses;
+			cop.len = tp.nvalue;
+			cop.iv = (unsigned char *)iv;
+			cop.op = COP_ENCRYPT;
+			cop.src = cop.dst = (unsigned char *)buffer[bufidx];
+			cop.mac = mac[bufidx];
+			bufidx = (bufidx + 1) % 64;
+
+			if (ioctl(fdc, CIOCASYNCCRYPT, &cop)) {
+				perror("ioctl(CIOCASYNCCRYPT)");
+				return 1;
+			}
+			wqueue++;
+		}
+		if (pfd.revents & POLLIN) {
+			if (ioctl(fdc, CIOCASYNCFETCH, &cop)) {
+				perror("ioctl(CIOCASYNCFETCH)");
+				return 1;
+			}
+			wqueue--;
+			total += cop.len;
+		}
+	} while(!must_finish || wqueue);
+	gettimeofday(&end, NULL);
+
+	secs = udifftimeval(start, end)/ 1000000.0;
+
+	if (tp.mflag) {
+		value2machine(total, secs, &dspeed);
+		printf("%" PRIu64 "\t%.2f\t%.2f\n", total, secs, dspeed);
+	} else {
+		value2human(total, secs, &ddata, &dspeed, metric);
+		printf ("done. %.2f %s in %.2f secs: ", ddata, metric, secs);
+		printf ("%.2f %s/sec\n", dspeed, metric);
+	}
+
+	for (rc = 0; rc < 64; rc++)
+		free(buffer[rc]);
+	return 0;
+}
+
+
+static int encrypt_sync(int fdc, struct test_params tp, struct session_op *sess)
 {
 	struct crypt_op cop;
 	char *buffer, iv[32];
 	char mac[HASH_MAX_LEN];
 	static int val = 23;
 	struct timeval start, end;
-	double total = 0;
+	uint64_t total = 0;
 	double secs, ddata, dspeed;
 	char metric[16];
 	int alignmask;
@@ -116,8 +248,10 @@ static int encrypt_data(int fdc, struct test_params tp, struct session_op *sess)
 
 	memset(iv, 0x23, 32);
 
-	printf("\tEncrypting in chunks of %d bytes: ", tp.nvalue);
-	fflush(stdout);
+	if (!tp.mflag) {
+		printf("\tBuffer size %d bytes: ", tp.nvalue);
+		fflush(stdout);
+	}
 
 	alignmask = get_alignmask(fdc, sess);
 	if (alignmask) {
@@ -133,7 +267,7 @@ static int encrypt_data(int fdc, struct test_params tp, struct session_op *sess)
 		}
 	}
 	memset(buffer, val++, tp.nvalue);
-	
+
 	must_finish = 0;
 	alarm(tp.tvalue);
 
@@ -157,9 +291,14 @@ static int encrypt_data(int fdc, struct test_params tp, struct session_op *sess)
 
 	secs = udifftimeval(start, end)/ 1000000.0;
 
-	value2human(total, secs, &ddata, &dspeed, metric);
-	printf ("done. %.2f %s in %.2f secs: ", ddata, metric, secs);
-	printf ("%.2f %s/sec\n", dspeed, metric);
+	if (tp.mflag) {
+		value2machine(total, secs, &dspeed);
+		printf("%" PRIu64 "\t%.2f\t%.2f\n", total, secs, dspeed);
+	} else {
+		value2human(total, secs, &ddata, &dspeed, metric);
+		printf ("done. %.2f %s in %.2f secs: ", ddata, metric, secs);
+		printf ("%.2f %s/sec\n", dspeed, metric);
+	}
 
 	free(buffer);
 	return 0;
@@ -174,6 +313,7 @@ int run_test(int id, struct test_params tp)
 {
 	int fd;
 	int fdc;
+	int err;
 
 	fd = open("/dev/crypto", O_RDWR, 0);
 	if (fd < 0) {
@@ -185,47 +325,45 @@ int run_test(int id, struct test_params tp)
 		return -EINVAL;
 	}
 
-	ciphers[id].func(fdc, tp);
+	if (!tp.mflag) {
+		char *type;
+		type = tp.aflag ? "async" : "sync";
+
+		fprintf(stderr, "Testing %s %s:\n", type, ciphers[id].name);
+	}
+	err = ciphers[id].func(fdc, tp);
 
 	close(fdc);
 	close(fd);
 
-	return 0;
-}
-
-int get_alignmask(int fdc, struct session_op *sess)
-{
-	int alignmask;
-
-#ifdef CIOCGSESSINFO
-	struct session_info_op siop;
-
-	siop.ses = sess->ses;
-	if (ioctl(fdc, CIOCGSESSINFO, &siop)) {
-		perror("ioctl(CIOCGSESSINFO)");
-		return -EINVAL;
-	}
-	alignmask = siop.alignmask;
-#else
-	alignmask = 0;
-#endif
-
-	return alignmask;
+	return err;
 }
 
 void do_test_vectors(int fdc, struct test_params tp, struct session_op *sess)
 {
 	int i;
+	int err;
 
 	if (tp.nflag) {
-		encrypt_data(fdc, tp, sess);
+		if (tp.aflag) {
+			encrypt_async(fdc, tp, sess);
+		} else {
+			encrypt_sync(fdc, tp, sess);
+		}
 	} else {
 		for (i = 256; i <= (64 * 1024); i *= 2) {
-			if (must_exit)
+			if (must_exit) {
 				break;
+			}
 
 			tp.nvalue = i;
-			if (encrypt_data(fdc, tp, sess)) {
+			if (tp.aflag) {
+				err = encrypt_async(fdc, tp, sess);
+			} else {
+				err = encrypt_sync(fdc, tp, sess);
+			}
+
+			if (err != 0) {
 				break;
 			}
 		}
@@ -257,7 +395,6 @@ int run_aes_128_cbc(int fdc, struct test_params tp)
 	struct session_op sess;
 	char keybuf[32];
 
-	fprintf(stderr, "\nTesting AES-128-CBC cipher: \n");
 	memset(&sess, 0, sizeof(sess));
 	sess.cipher = CRYPTO_AES_CBC;
 	sess.keylen = 16;
@@ -277,7 +414,6 @@ int run_aes_256_xts(int fdc, struct test_params tp)
 	struct session_op sess;
 	char keybuf[32];
 
-	fprintf(stderr, "\nTesting AES-256-XTS cipher: \n");
 	memset(&sess, 0, sizeof(sess));
 	sess.cipher = CRYPTO_AES_XTS;
 	sess.keylen = 32;
@@ -296,7 +432,6 @@ int run_crc32c(int fdc, struct test_params tp)
 {
 	struct session_op sess;
 
-	fprintf(stderr, "\nTesting CRC32C hash: \n");
 	memset(&sess, 0, sizeof(sess));
 	sess.mac = CRYPTO_CRC32C;
 	if (ioctl(fdc, CIOCGSESSION, &sess)) {
@@ -312,7 +447,6 @@ int run_sha1(int fdc, struct test_params tp)
 {
 	struct session_op sess;
 
-	fprintf(stderr, "\nTesting SHA-1 hash: \n");
 	memset(&sess, 0, sizeof(sess));
 	sess.mac = CRYPTO_SHA1;
 	if (ioctl(fdc, CIOCGSESSION, &sess)) {
@@ -328,7 +462,6 @@ int run_sha256(int fdc, struct test_params tp)
 {
 	struct session_op sess;
 
-	fprintf(stderr, "\nTesting SHA2-256 hash: \n");
 	memset(&sess, 0, sizeof(sess));
 	sess.mac = CRYPTO_SHA2_256;
 	if (ioctl(fdc, CIOCGSESSION, &sess)) {
@@ -342,6 +475,7 @@ int run_sha256(int fdc, struct test_params tp)
 
 int main(int argc, char **argv)
 {
+	int err = 0;
 	int i;
 	int c;
 	bool alg_flag;
@@ -350,9 +484,11 @@ int main(int argc, char **argv)
 
 	tp.tflag = false;
 	tp.nflag = false;
+	tp.mflag = false;
+	tp.aflag = false;
 	alg_flag = false;
 	opterr = 0;
-	while ((c = getopt(argc, argv, "hn:t:")) != -1) {
+	while ((c = getopt(argc, argv, "ahn:t:m")) != -1) {
 		switch (c) {
 		case 'n':
 			tp.nvalue = atoi(optarg);
@@ -361,6 +497,12 @@ int main(int argc, char **argv)
 		case 't':
 			tp.tvalue = atoi(optarg);
 			tp.tflag = true;
+			break;
+		case 'm':
+			tp.mflag = true;
+			break;
+		case 'a':
+			tp.aflag = true;
 			break;
 		case 'h': /* no break */
 		default:
@@ -384,17 +526,21 @@ int main(int argc, char **argv)
 	signal(SIGINT, exit_handler);
 
 	for (i = 0; i < ALG_COUNT; i++) {
-		if (must_exit)
+		if (must_exit) {
 			break;
+		}
 
 		if (alg_flag) {
 			if (strcmp(alg_name, ciphers[i].name) == 0) {
-				run_test(i, tp);
+				err = run_test(i, tp);
 			}
 		} else {
-			run_test(i, tp);
+			err = run_test(i, tp);
+			if (err != 0) {
+				break;
+			}
 		}
 	}
 
-	return 0;
+	return err;
 }

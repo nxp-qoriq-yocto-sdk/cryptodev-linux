@@ -20,8 +20,8 @@
 # no user-configurable options below this line
 
 NUM_CORES=$(nproc)
-CMD_BIN="async_speed"
-OUT_BASENAME="async_speed"
+CMD_BIN="speed"
+OUT_BASENAME="speed"
 MPSTAT_OUT="mpstat_out"
 
 # A bigger hammer for mpstat to use ISO8601 time format (fixed in 11.2.2)
@@ -37,6 +37,7 @@ Usage: `basename $0` [OPTIONS] <alg_name>
   -t <secs>       time to run each test (default 10 secs)
   -n <bytes>      size of the test buffer (default 256 bytes)
   -v              make output more verbose (default tabular)
+  -a              run async version of the benchmark (default sync)
   -h              show this help
 
 alg_name: null, aes-128-cbc, aes-256-xts, sha1, sha256, crc32c
@@ -62,7 +63,7 @@ function run_parallel
 {
     trap control_c SIGINT
 
-    OPTIONS="-t $tvalue -n $nvalue -m"
+    OPTIONS="-t $tvalue -n $nvalue -m $aflag"
     CMD="$CMD_BIN $OPTIONS $alg_name"
 
     (sleep 1; S_TIME_FORMAT=ISO mpstat 1 $(($tvalue-2))) &> $MPSTAT_OUT &
@@ -100,7 +101,7 @@ function run_parallel
     avg_speed=$(echo "scale=2; $total_data / $runtime / 1000000000" | bc -l)
     cpu_idle=$(get_cpu_idle)
 
-    if [ ! -z "$vvalue" ]
+    if [ ! -z "$vflag" ]
     then
 	echo
 	echo "buffer size  :   $nvalue"
@@ -118,7 +119,7 @@ function run_parallel
 
 function control_c
 {
-    killall async_speed > /dev/null
+    killall $CMD_BIN > /dev/null
     killall mpstat > /dev/null
 }
 
@@ -137,13 +138,14 @@ function main
 	rm -f ${OUT_BASENAME}_*
 	rm -f ${MPSTAT_OUT}
 
-	while getopts vhm:t:n: option
+	while getopts avhm:t:n: option
 	do
 		case "$option" in
 			m) mvalue="$OPTARG";;
 			t) tvalue="$OPTARG";;
 			n) nvalue="$OPTARG";;
-			v) vvalue="verbose";;
+			v) vflag="verbose";;
+			a) aflag="-a";;
 			*) usage $0; exit 1;;
 		esac
 	done

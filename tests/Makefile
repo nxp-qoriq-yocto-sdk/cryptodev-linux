@@ -3,19 +3,18 @@ CFLAGS += -I.. $(CRYPTODEV_CFLAGS)
 
 comp_progs := cipher_comp hash_comp hmac_comp
 
-hostprogs := cipher cipher-aead hmac sync_speed async_cipher async_hmac \
-	async_speed sha_speed hashcrypt_speed fullspeed cipher-gcm \
+hostprogs := cipher cipher-aead hmac async_cipher async_hmac \
+	speed sha_speed hashcrypt_speed fullspeed cipher-gcm \
 	cipher-aead-srtp $(comp_progs)
 
 example-cipher-objs := cipher.o
 example-cipher-aead-objs := cipher-aead.o
 example-hmac-objs := hmac.o
-example-speed-objs := sync_speed.o
 example-fullspeed-objs := fullspeed.c
 example-sha-speed-objs := sha_speed.c
 example-async-cipher-objs := async_cipher.o
 example-async-hmac-objs := async_hmac.o
-example-async-speed-objs := async_speed.o
+example-async-speed-objs := speed.o
 example-hashcrypt-speed-objs := hashcrypt_speed.c
 
 prefix ?= /usr/local
@@ -38,7 +37,7 @@ install:
 	for prog in $(hostprogs); do \
 		install -m 755 $$prog $(DESTDIR)/$(bindir); \
 	done
-	install -m 755 async_speed_multi.sh  $(DESTDIR)/$(bindir)
+	install -m 755 speed_multi.sh  $(DESTDIR)/$(bindir)
 	install -m 755 run_crypto_tests.sh  $(DESTDIR)/$(bindir)
 
 clean:

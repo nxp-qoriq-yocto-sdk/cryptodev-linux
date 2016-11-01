@@ -16,7 +16,7 @@ do
 	do
 		for bsize in ${BUF_SIZE}
 		do
-			async_speed_multi.sh -t 10 -n $bsize -m ${multi} ${alg_name} |
+			speed_multi.sh -t 10 -n $bsize -m ${multi} ${alg_name} |
 			tail -n 1
 		done
 	done
