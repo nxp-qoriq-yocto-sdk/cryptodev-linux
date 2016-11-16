@@ -11,6 +11,8 @@ struct cryptodev_result {
 	int err;
 };
 
+#include "cipherapi.h"
+
 struct cipher_data {
 	int init; /* 0 uninitialized */
 	int blocksize;
@@ -20,8 +22,8 @@ struct cipher_data {
 	int alignmask;
 	struct {
 		/* block ciphers */
-		struct crypto_ablkcipher *s;
-		struct ablkcipher_request *request;
+		cryptodev_crypto_blkcipher_t *s;
+		cryptodev_blkcipher_request_t *request;
 
 		/* AEAD ciphers */
 		struct crypto_aead *as;
