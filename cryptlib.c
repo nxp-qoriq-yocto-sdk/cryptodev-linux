@@ -24,7 +24,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#include <linux/crypto.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/ioctl.h>
@@ -38,7 +37,9 @@
 #include <linux/rtnetlink.h>
 #include <crypto/authenc.h>
 #include "cryptodev_int.h"
+#include "cipherapi.h"
 
+extern const struct crypto_type crypto_givcipher_type;
 
 static void cryptodev_complete(struct crypto_async_request *req, int err)
 {
@@ -122,6 +123,19 @@ error:
 	return ret;
 }
 
+/* Was correct key length supplied? */
+static int check_key_size(size_t keylen, const char *alg_name,
+			  unsigned int min_keysize, unsigned int max_keysize)
+{
+	if (max_keysize > 0 && unlikely((keylen < min_keysize) ||
+					(keylen > max_keysize))) {
+		ddebug(1, "Wrong keylen '%zu' for algorithm '%s'. Use %u to %u.",
+		       keylen, alg_name, min_keysize, max_keysize);
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 int cryptodev_cipher_init(struct cipher_data *out, const char *alg_name,
 				uint8_t *keyp, size_t keylen, int stream, int aead)
@@ -129,32 +143,50 @@ int cryptodev_cipher_init(struct cipher_data *out, const char *alg_name,
 	int ret;
 
 	if (aead == 0) {
+		unsigned int min_keysize, max_keysize;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
+		struct crypto_tfm *tfm;
+#else
 		struct ablkcipher_alg *alg;
+#endif
 
-		out->async.s = crypto_alloc_ablkcipher(alg_name, 0, 0);
+		out->async.s = cryptodev_crypto_alloc_blkcipher(alg_name, 0, 0);
 		if (unlikely(IS_ERR(out->async.s))) {
 			ddebug(1, "Failed to load cipher %s", alg_name);
 				return -EINVAL;
 		}
 
-		alg = crypto_ablkcipher_alg(out->async.s);
-		if (alg != NULL) {
-			/* Was correct key length supplied? */
-			if (alg->max_keysize > 0 &&
-					unlikely((keylen < alg->min_keysize) ||
-					(keylen > alg->max_keysize))) {
-				ddebug(1, "Wrong keylen '%zu' for algorithm '%s'. Use %u to %u.",
-						keylen, alg_name, alg->min_keysize, alg->max_keysize);
-				ret = -EINVAL;
-				goto error;
-			}
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
+		tfm = crypto_skcipher_tfm(out->async.s);
+		if ((tfm->__crt_alg->cra_type == &crypto_ablkcipher_type) ||
+		    (tfm->__crt_alg->cra_type == &crypto_givcipher_type)) {
+			struct ablkcipher_alg *alg;
+
+			alg = &tfm->__crt_alg->cra_ablkcipher;
+			min_keysize = alg->min_keysize;
+			max_keysize = alg->max_keysize;
+		} else {
+			struct skcipher_alg *alg;
+
+			alg = crypto_skcipher_alg(out->async.s);
+			min_keysize = alg->min_keysize;
+			max_keysize = alg->max_keysize;
 		}
+#else
+		alg = crypto_ablkcipher_alg(out->async.s);
+		min_keysize = alg->min_keysize;
+		max_keysize = alg->max_keysize;
+#endif
+		ret = check_key_size(keylen, alg_name, min_keysize,
+				     max_keysize);
+		if (ret)
+			goto error;
 
-		out->blocksize = crypto_ablkcipher_blocksize(out->async.s);
-		out->ivsize = crypto_ablkcipher_ivsize(out->async.s);
-		out->alignmask = crypto_ablkcipher_alignmask(out->async.s);
+		out->blocksize = cryptodev_crypto_blkcipher_blocksize(out->async.s);
+		out->ivsize = cryptodev_crypto_blkcipher_ivsize(out->async.s);
+		out->alignmask = cryptodev_crypto_blkcipher_alignmask(out->async.s);
 
-		ret = crypto_ablkcipher_setkey(out->async.s, keyp, keylen);
+		ret = cryptodev_crypto_blkcipher_setkey(out->async.s, keyp, keylen);
 	} else {
 		out->async.as = crypto_alloc_aead(alg_name, 0, 0);
 		if (unlikely(IS_ERR(out->async.as))) {
@@ -181,14 +213,14 @@ int cryptodev_cipher_init(struct cipher_data *out, const char *alg_name,
 	init_completion(&out->async.result.completion);
 
 	if (aead == 0) {
-		out->async.request = ablkcipher_request_alloc(out->async.s, GFP_KERNEL);
+		out->async.request = cryptodev_blkcipher_request_alloc(out->async.s, GFP_KERNEL);
 		if (unlikely(!out->async.request)) {
 			derr(1, "error allocating async crypto request");
 			ret = -ENOMEM;
 			goto error;
 		}
 
-		ablkcipher_request_set_callback(out->async.request, 0,
+		cryptodev_blkcipher_request_set_callback(out->async.request, 0,
 					cryptodev_complete, &out->async.result);
 	} else {
 		out->async.arequest = aead_request_alloc(out->async.as, GFP_KERNEL);
@@ -206,10 +238,8 @@ int cryptodev_cipher_init(struct cipher_data *out, const char *alg_name,
 	return 0;
 error:
 	if (aead == 0) {
-		if (out->async.request)
-			ablkcipher_request_free(out->async.request);
-		if (out->async.s)
-			crypto_free_ablkcipher(out->async.s);
+		cryptodev_blkcipher_request_free(out->async.request);
+		cryptodev_crypto_free_blkcipher(out->async.s);
 	} else {
 		if (out->async.arequest)
 			aead_request_free(out->async.arequest);
@@ -224,10 +254,8 @@ void cryptodev_cipher_deinit(struct cipher_data *cdata)
 {
 	if (cdata->init) {
 		if (cdata->aead == 0) {
-			if (cdata->async.request)
-				ablkcipher_request_free(cdata->async.request);
-			if (cdata->async.s)
-				crypto_free_ablkcipher(cdata->async.s);
+			cryptodev_blkcipher_request_free(cdata->async.request);
+			cryptodev_crypto_free_blkcipher(cdata->async.s);
 		} else {
 			if (cdata->async.arequest)
 				aead_request_free(cdata->async.arequest);
@@ -274,10 +302,10 @@ ssize_t cryptodev_cipher_encrypt(struct cipher_data *cdata,
 	reinit_completion(&cdata->async.result.completion);
 
 	if (cdata->aead == 0) {
-		ablkcipher_request_set_crypt(cdata->async.request,
+		cryptodev_blkcipher_request_set_crypt(cdata->async.request,
 			(struct scatterlist *)src, dst,
 			len, cdata->async.iv);
-		ret = crypto_ablkcipher_encrypt(cdata->async.request);
+		ret = cryptodev_crypto_blkcipher_encrypt(cdata->async.request);
 	} else {
 		aead_request_set_crypt(cdata->async.arequest,
 			(struct scatterlist *)src, dst,
@@ -296,10 +324,10 @@ ssize_t cryptodev_cipher_decrypt(struct cipher_data *cdata,
 
 	reinit_completion(&cdata->async.result.completion);
 	if (cdata->aead == 0) {
-		ablkcipher_request_set_crypt(cdata->async.request,
+		cryptodev_blkcipher_request_set_crypt(cdata->async.request,
 			(struct scatterlist *)src, dst,
 			len, cdata->async.iv);
-		ret = crypto_ablkcipher_decrypt(cdata->async.request);
+		ret = cryptodev_crypto_blkcipher_decrypt(cdata->async.request);
 	} else {
 		aead_request_set_crypt(cdata->async.arequest,
 			(struct scatterlist *)src, dst,

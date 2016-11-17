@@ -35,7 +35,6 @@
  */
 
 #include <crypto/hash.h>
-#include <linux/crypto.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/ioctl.h>
@@ -54,6 +53,7 @@
 #include "cryptodev_int.h"
 #include "zc.h"
 #include "version.h"
+#include "cipherapi.h"
 
 MODULE_AUTHOR("Nikos Mavrogiannopoulos <nmav@gnutls.org>");
 MODULE_DESCRIPTION("CryptoDev driver");
@@ -1052,7 +1052,7 @@ static int get_session_info(struct fcrypt *fcr, struct session_info_op *siop)
 
 	if (ses_ptr->cdata.init) {
 		if (ses_ptr->cdata.aead == 0)
-			tfm = crypto_ablkcipher_tfm(ses_ptr->cdata.async.s);
+			tfm = cryptodev_crypto_blkcipher_tfm(ses_ptr->cdata.async.s);
 		else
 			tfm = crypto_aead_tfm(ses_ptr->cdata.async.as);
 		tfm_info_to_alg_info(&siop->cipher_info, tfm);
