@@ -26,6 +26,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <signal.h>
+#include <unistd.h>
 #include <crypto/cryptodev.h>
 
 #ifdef ENABLE_ASYNC
@@ -36,7 +37,7 @@ static double udifftimeval(struct timeval start, struct timeval end)
 	       (double)(end.tv_sec - start.tv_sec) * 1000 * 1000;
 }
 
-static int must_finish = 0;
+static volatile int must_finish;
 static struct pollfd pfd;
 
 static void alarm_handler(int signo)

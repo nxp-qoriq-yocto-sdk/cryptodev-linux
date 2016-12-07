@@ -12,6 +12,7 @@
 
 #include <sys/ioctl.h>
 #include <crypto/cryptodev.h>
+#include "testhelper.h"
 
 #define	DATA_SIZE	(8*1024)
 #define AUTH_SIZE       31
@@ -89,12 +90,12 @@ int i;
 static int
 test_crypto(int cfd)
 {
-	char plaintext_raw[DATA_SIZE + 63], *plaintext;
-	char ciphertext_raw[DATA_SIZE + 63], *ciphertext;
-	char iv[BLOCK_SIZE];
-	char key[KEY_SIZE];
-	char auth[AUTH_SIZE];
-	unsigned char sha1mac[20];
+	uint8_t plaintext_raw[DATA_SIZE + 63], *plaintext;
+	uint8_t ciphertext_raw[DATA_SIZE + 63], *ciphertext;
+	uint8_t iv[BLOCK_SIZE];
+	uint8_t key[KEY_SIZE];
+	uint8_t auth[AUTH_SIZE];
+	uint8_t sha1mac[20];
 	int pad, i;
 
 	struct session_op sess;
@@ -117,7 +118,7 @@ test_crypto(int cfd)
 
 	sess.mac = CRYPTO_SHA1_HMAC;
 	sess.mackeylen = 16;
-	sess.mackey = (uint8_t*)"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+	sess.mackey = (uint8_t *)"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
 
 	if (ioctl(cfd, CIOCGSESSION, &sess)) {
 		perror("ioctl(CIOCGSESSION)");
@@ -133,8 +134,8 @@ test_crypto(int cfd)
 		printf("requested cipher CRYPTO_AES_CBC/HMAC-SHA1, got %s with driver %s\n",
 			siop.cipher_info.cra_name, siop.cipher_info.cra_driver_name);
 
-	plaintext = (char *)(((unsigned long)plaintext_raw + siop.alignmask) & ~siop.alignmask);
-	ciphertext = (char *)(((unsigned long)ciphertext_raw + siop.alignmask) & ~siop.alignmask);
+	plaintext = buf_align(plaintext_raw, siop.alignmask);
+	ciphertext = buf_align(ciphertext_raw, siop.alignmask);
 	memset(plaintext, 0x15, DATA_SIZE);
 
 	if (get_sha1_hmac(cfd, sess.mackey, sess.mackeylen, auth, sizeof(auth), plaintext, DATA_SIZE, sha1mac) != 0) {
@@ -242,12 +243,12 @@ test_crypto(int cfd)
 static int
 test_encrypt_decrypt(int cfd)
 {
-	char plaintext_raw[DATA_SIZE + 63], *plaintext;
-	char ciphertext_raw[DATA_SIZE + 63], *ciphertext;
-	char iv[BLOCK_SIZE];
-	char key[KEY_SIZE];
-	char auth[AUTH_SIZE];
-	unsigned char sha1mac[20];
+	uint8_t plaintext_raw[DATA_SIZE + 63], *plaintext;
+	uint8_t ciphertext_raw[DATA_SIZE + 63], *ciphertext;
+	uint8_t iv[BLOCK_SIZE];
+	uint8_t key[KEY_SIZE];
+	uint8_t auth[AUTH_SIZE];
+	uint8_t sha1mac[20];
 	int enc_len;
 
 	struct session_op sess;
@@ -270,7 +271,7 @@ test_encrypt_decrypt(int cfd)
 
 	sess.mac = CRYPTO_SHA1_HMAC;
 	sess.mackeylen = 16;
-	sess.mackey = (uint8_t*)"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+	sess.mackey = (uint8_t *)"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
 
 	if (ioctl(cfd, CIOCGSESSION, &sess)) {
 		perror("ioctl(CIOCGSESSION)");
@@ -285,8 +286,8 @@ test_encrypt_decrypt(int cfd)
 //	printf("requested cipher CRYPTO_AES_CBC/HMAC-SHA1, got %s with driver %s\n",
 //			siop.cipher_info.cra_name, siop.cipher_info.cra_driver_name);
 
-	plaintext = (char *)(((unsigned long)plaintext_raw + siop.alignmask) & ~siop.alignmask);
-	ciphertext = (char *)(((unsigned long)ciphertext_raw + siop.alignmask) & ~siop.alignmask);
+	plaintext = buf_align(plaintext_raw, siop.alignmask);
+	ciphertext = buf_align(ciphertext_raw, siop.alignmask);
 
 	memset(plaintext, 0x15, DATA_SIZE);
 
@@ -328,7 +329,7 @@ test_encrypt_decrypt(int cfd)
 	sess.key = key;
 	sess.mac = CRYPTO_SHA1_HMAC;
 	sess.mackeylen = 16;
-	sess.mackey = (uint8_t*)"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+	sess.mackey = (uint8_t *)"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
 
 	if (ioctl(cfd, CIOCGSESSION, &sess)) {
 		perror("ioctl(CIOCGSESSION)");
@@ -391,12 +392,12 @@ test_encrypt_decrypt(int cfd)
 static int
 test_encrypt_decrypt_error(int cfd, int err)
 {
-	char plaintext_raw[DATA_SIZE + 63], *plaintext;
-	char ciphertext_raw[DATA_SIZE + 63], *ciphertext;
-	char iv[BLOCK_SIZE];
-	char key[KEY_SIZE];
-	char auth[AUTH_SIZE];
-	unsigned char sha1mac[20];
+	uint8_t plaintext_raw[DATA_SIZE + 63], *plaintext;
+	uint8_t ciphertext_raw[DATA_SIZE + 63], *ciphertext;
+	uint8_t iv[BLOCK_SIZE];
+	uint8_t key[KEY_SIZE];
+	uint8_t auth[AUTH_SIZE];
+	uint8_t sha1mac[20];
 	int enc_len;
 
 	struct session_op sess;
@@ -419,7 +420,7 @@ test_encrypt_decrypt_error(int cfd, int err)
 
 	sess.mac = CRYPTO_SHA1_HMAC;
 	sess.mackeylen = 16;
-	sess.mackey = (uint8_t*)"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+	sess.mackey = (uint8_t *)"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
 
 	if (ioctl(cfd, CIOCGSESSION, &sess)) {
 		perror("ioctl(CIOCGSESSION)");
@@ -434,8 +435,8 @@ test_encrypt_decrypt_error(int cfd, int err)
 //	printf("requested cipher CRYPTO_AES_CBC/HMAC-SHA1, got %s with driver %s\n",
 //			siop.cipher_info.cra_name, siop.cipher_info.cra_driver_name);
 
-	plaintext = (char *)(((unsigned long)plaintext_raw + siop.alignmask) & ~siop.alignmask);
-	ciphertext = (char *)(((unsigned long)ciphertext_raw + siop.alignmask) & ~siop.alignmask);
+	plaintext = buf_align(plaintext_raw, siop.alignmask);
+	ciphertext = buf_align(ciphertext_raw, siop.alignmask);
 	memset(plaintext, 0x15, DATA_SIZE);
 
 	if (get_sha1_hmac(cfd, sess.mackey, sess.mackeylen, auth, sizeof(auth), plaintext, DATA_SIZE, sha1mac) != 0) {
@@ -476,7 +477,7 @@ test_encrypt_decrypt_error(int cfd, int err)
 	sess.key = key;
 	sess.mac = CRYPTO_SHA1_HMAC;
 	sess.mackeylen = 16;
-	sess.mackey = (uint8_t*)"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+	sess.mackey = (uint8_t *)"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
 
 	if (ioctl(cfd, CIOCGSESSION, &sess)) {
 		perror("ioctl(CIOCGSESSION)");

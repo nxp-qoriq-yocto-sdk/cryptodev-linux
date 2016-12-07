@@ -69,7 +69,7 @@ test_crypto(int cfd)
 
 	cryp.ses = sess.ses;
 	cryp.len = sizeof("what do ya want for nothing?")-1;
-	cryp.src = "what do ya want for nothing?";
+	cryp.src = (uint8_t *)"what do ya want for nothing?";
 	cryp.mac = mac;
 	cryp.op = COP_ENCRYPT;
 	if (ioctl(cfd, CIOCCRYPT, &cryp)) {
@@ -92,7 +92,7 @@ test_crypto(int cfd)
 	memset(mac, 0, sizeof(mac));
 
 	sess.cipher = 0;
-	sess.mackey = (uint8_t*)"Jefe";
+	sess.mackey = (uint8_t *)"Jefe";
 	sess.mackeylen = 4;
 	sess.mac = CRYPTO_MD5_HMAC;
 	if (ioctl(cfd, CIOCGSESSION, &sess)) {
@@ -113,7 +113,7 @@ test_crypto(int cfd)
 
 	cryp.ses = sess.ses;
 	cryp.len = sizeof("what do ya want for nothing?")-1;
-	cryp.src = "what do ya want for nothing?";
+	cryp.src = (uint8_t *)"what do ya want for nothing?";
 	cryp.mac = mac;
 	cryp.op = COP_ENCRYPT;
 	if (ioctl(cfd, CIOCCRYPT, &cryp)) {
@@ -138,7 +138,7 @@ test_crypto(int cfd)
 	sess.keylen = KEY_SIZE;
 	sess.key = data.key;
 	sess.mackeylen = 16;
-	sess.mackey = (uint8_t*)"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+	sess.mackey = (uint8_t *)"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
 	if (ioctl(cfd, CIOCGSESSION, &sess)) {
 		perror("ioctl(CIOCGSESSION)");
 		return 1;
@@ -212,8 +212,6 @@ test_extras(int cfd)
 #endif
 	struct crypt_op cryp;
 	uint8_t mac[AALG_MAX_RESULT_LEN];
-	uint8_t oldmac[AALG_MAX_RESULT_LEN];
-	uint8_t md5_hmac_out[] = "\x75\x0c\x78\x3e\x6a\xb0\xb5\x03\xea\xa8\x6e\x31\x0a\x5d\xb7\x38";
 	uint8_t sha1_out[] = "\x8f\x82\x03\x94\xf9\x53\x35\x18\x20\x45\xda\x24\xf3\x4d\xe5\x2b\xf8\xbc\x34\x32";
 	int i;
 
@@ -246,7 +244,7 @@ test_extras(int cfd)
 
 	cryp.ses = sess.ses;
 	cryp.len = sizeof("what do")-1;
-	cryp.src = "what do";
+	cryp.src = (uint8_t *)"what do";
 	cryp.mac = mac;
 	cryp.op = COP_ENCRYPT;
 	cryp.flags = COP_FLAG_UPDATE;
@@ -257,7 +255,7 @@ test_extras(int cfd)
 
 	cryp.ses = sess.ses;
 	cryp.len = sizeof(" ya want for nothing?")-1;
-	cryp.src = " ya want for nothing?";
+	cryp.src = (uint8_t *)" ya want for nothing?";
 	cryp.mac = mac;
 	cryp.op = COP_ENCRYPT;
 	cryp.flags = COP_FLAG_FINAL;
