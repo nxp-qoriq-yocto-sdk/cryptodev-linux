@@ -1,5 +1,5 @@
-CRYPTODEV_CFLAGS += -DENABLE_ASYNC -std=gnu90 -Wall -Werror
-CFLAGS += -I.. $(CRYPTODEV_CFLAGS)
+CRYPTODEV_CFLAGS += -DENABLE_ASYNC -std=gnu90
+CFLAGS += -I.. $(CRYPTODEV_CFLAGS) -Wall -Werror
 
 comp_progs := cipher_comp hash_comp hmac_comp
 

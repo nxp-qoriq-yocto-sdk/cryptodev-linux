@@ -9,9 +9,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdint.h>
-
 #include <sys/ioctl.h>
 #include <crypto/cryptodev.h>
+#include "testhelper.h"
 
 static int debug = 0;
 
@@ -58,8 +58,8 @@ test_crypto(int cfd)
 		printf("requested cipher CRYPTO_AES_CBC, got %s with driver %s\n",
 			siop.cipher_info.cra_name, siop.cipher_info.cra_driver_name);
 
-	plaintext = (uint8_t *)(((unsigned long)plaintext_raw + siop.alignmask) & ~siop.alignmask);
-	ciphertext = (uint8_t *)(((unsigned long)ciphertext_raw + siop.alignmask) & ~siop.alignmask);
+	plaintext = buf_align(plaintext_raw, siop.alignmask);
+	ciphertext = buf_align(ciphertext_raw, siop.alignmask);
 #else
 	plaintext = plaintext_raw;
 	ciphertext = ciphertext_raw;
@@ -177,7 +177,7 @@ static int test_aes(int cfd)
 		perror("ioctl(CIOCGSESSINFO)");
 		return 1;
 	}
-	plaintext1 = (uint8_t *)(((unsigned long)plaintext1_raw + siop.alignmask) & ~siop.alignmask);
+	plaintext1 = buf_align(plaintext1_raw, siop.alignmask);
 #else
 	plaintext1 = plaintext1_raw;
 #endif
@@ -227,7 +227,7 @@ static int test_aes(int cfd)
 		printf("requested cipher CRYPTO_AES_CBC, got %s with driver %s\n",
 			siop.cipher_info.cra_name, siop.cipher_info.cra_driver_name);
 
-	plaintext2 = (uint8_t *)(((unsigned long)plaintext2_raw + siop.alignmask) & ~siop.alignmask);
+	plaintext2 = buf_align(plaintext2_raw, siop.alignmask);
 #else
 	plaintext2 = plaintext2_raw;
 #endif
