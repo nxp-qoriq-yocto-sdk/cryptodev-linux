@@ -488,6 +488,12 @@ int run_null(int fdc, struct test_params tp)
 	}
 
 	do_test_vectors(fdc, tp, &sess);
+
+	if (ioctl(fdc, CIOCFSESSION, &sess)) {
+		perror("ioctl(CIOCFSESSION)");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -507,6 +513,12 @@ int run_aes_128_cbc(int fdc, struct test_params tp)
 	}
 
 	do_test_vectors(fdc, tp, &sess);
+
+	if (ioctl(fdc, CIOCFSESSION, &sess)) {
+		perror("ioctl(CIOCFSESSION)");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -526,6 +538,12 @@ int run_aes_256_xts(int fdc, struct test_params tp)
 	}
 
 	do_test_vectors(fdc, tp, &sess);
+
+	if (ioctl(fdc, CIOCFSESSION, &sess)) {
+		perror("ioctl(CIOCFSESSION)");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -541,6 +559,12 @@ int run_crc32c(int fdc, struct test_params tp)
 	}
 
 	do_test_vectors(fdc, tp, &sess);
+
+	if (ioctl(fdc, CIOCFSESSION, &sess)) {
+		perror("ioctl(CIOCFSESSION)");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -556,6 +580,12 @@ int run_sha1(int fdc, struct test_params tp)
 	}
 
 	do_test_vectors(fdc, tp, &sess);
+
+	if (ioctl(fdc, CIOCFSESSION, &sess)) {
+		perror("ioctl(CIOCFSESSION)");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -571,6 +601,12 @@ int run_sha256(int fdc, struct test_params tp)
 	}
 
 	do_test_vectors(fdc, tp, &sess);
+
+	if (ioctl(fdc, CIOCFSESSION, &sess)) {
+		perror("ioctl(CIOCFSESSION)");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -595,6 +631,12 @@ int run_authenc(int fdc, struct test_params tp)
 	}
 
 	do_test_vectors(fdc, tp, &sess);
+
+	if (ioctl(fdc, CIOCFSESSION, &sess)) {
+		perror("ioctl(CIOCFSESSION)");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
