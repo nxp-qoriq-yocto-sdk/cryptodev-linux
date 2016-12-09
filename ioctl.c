@@ -222,6 +222,11 @@ crypto_create_session(struct fcrypt *fcr, struct session_op *sop)
 		stream = 0;
 		aead = 1;
 		break;
+	case CRYPTO_AUTHENC_HMAC_SHA1_CBC_AES:
+		alg_name = "authenc(hmac(sha1),cbc(aes))";
+		stream = 0;
+		aead = 1;
+		break;
 	case CRYPTO_NULL:
 		alg_name = "ecb(cipher_null)";
 		stream = 1;

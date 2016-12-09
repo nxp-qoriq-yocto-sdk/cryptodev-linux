@@ -33,12 +33,15 @@
 #include <stdint.h>
 #include <inttypes.h>
 
+#define AUTH_SIZE 	31
+#define TAG_LEN		20
 
 struct test_params {
 	bool tflag;
 	bool nflag;
 	bool mflag;
 	bool aflag;
+	bool authflag;
 	int tvalue;
 	int nvalue;
 };
@@ -59,8 +62,9 @@ int run_aes_256_xts(int fdc, struct test_params tp);
 int run_crc32c(int fdc, struct test_params tp);
 int run_sha1(int fdc, struct test_params tp);
 int run_sha256(int fdc, struct test_params tp);
+int run_authenc(int fdc, struct test_params tp);
 
-#define ALG_COUNT	6
+#define ALG_COUNT	7
 struct {
 	char *name;
 	int (*func)(int, struct test_params);
@@ -71,6 +75,7 @@ struct {
 	{"crc32c",	run_crc32c},
 	{"sha1",	run_sha1},
 	{"sha256",	run_sha256},
+	{"authenc", 	run_authenc},
 };
 
 static double udifftimeval(struct timeval start, struct timeval end)
@@ -269,7 +274,7 @@ static int encrypt_sync(int fdc, struct test_params tp, struct session_op *sess)
 	}
 	memset(buffer, val++, tp.nvalue);
 
-	must_finish = 0;
+	must_finish = 1;
 	alarm(tp.tvalue);
 
 	gettimeofday(&start, NULL);
@@ -287,6 +292,84 @@ static int encrypt_sync(int fdc, struct test_params tp, struct session_op *sess)
 			return 1;
 		}
 		total += cop.len;
+	} while(!must_finish);
+	gettimeofday(&end, NULL);
+
+	secs = udifftimeval(start, end)/ 1000000.0;
+
+	if (tp.mflag) {
+		value2machine(total, secs, &dspeed);
+		printf("%" PRIu64 "\t%.2f\t%.2f\n", total, secs, dspeed);
+	} else {
+		value2human(total, secs, &ddata, &dspeed, metric);
+		printf ("done. %.2f %s in %.2f secs: ", ddata, metric, secs);
+		printf ("%.2f %s/sec\n", dspeed, metric);
+	}
+
+	free(buffer);
+	return 0;
+}
+
+static int encrypt_auth(int fdc, struct test_params tp, struct session_op *sess)
+{
+	struct crypt_auth_op cao;
+	char *buffer, iv[32];
+	uint8_t auth[AUTH_SIZE];
+	static int val = 23;
+	struct timeval start, end;
+	uint64_t total = 0;
+	double secs, ddata, dspeed;
+	char metric[16];
+	int alignmask;
+	int min_alignmask = sizeof(void*) - 1;
+	int alloc_size;
+
+	memset(iv, 0x23, 32);
+	memset(auth, 0xf1, sizeof(auth));
+
+	if (!tp.mflag) {
+		printf("\tBuffer size %d bytes: ", tp.nvalue);
+		fflush(stdout);
+	}
+
+	alloc_size = tp.nvalue + TAG_LEN;
+	alignmask = get_alignmask(fdc, sess);
+	if (alignmask) {
+		alignmask = ((alignmask < min_alignmask) ? min_alignmask : alignmask);
+		if (posix_memalign((void **)(&buffer), alignmask + 1, alloc_size)) {
+			printf("posix_memalign() failed!\n");
+			return 1;
+		}
+	} else {
+		if (!(buffer = malloc(alloc_size))) {
+			perror("malloc()");
+			return 1;
+		}
+	}
+	memset(buffer, val++, tp.nvalue);
+
+	must_finish = 0;
+	alarm(tp.tvalue);
+
+	gettimeofday(&start, NULL);
+	do {
+		memset(&cao, 0, sizeof(cao));
+		cao.ses = sess->ses;
+		cao.auth_src = auth;
+		cao.auth_len = sizeof(auth);
+		cao.len = tp.nvalue;
+		cao.iv = (unsigned char *)iv;
+		cao.op = COP_ENCRYPT;
+		cao.src = (unsigned char *)buffer;
+		cao.dst = cao.src;
+		cao.tag_len = TAG_LEN;
+		cao.flags = COP_FLAG_AEAD_TLS_TYPE;
+
+		if (ioctl(fdc, CIOCAUTHCRYPT, &cao)) {
+			perror("ioctl(CIOCAUTHCRYPT)");
+			return 1;
+		}
+		total += cao.len;
 	} while(!must_finish);
 	gettimeofday(&end, NULL);
 
@@ -326,16 +409,41 @@ int run_test(int id, struct test_params tp)
 		return -EINVAL;
 	}
 
-	if (!tp.mflag) {
-		char *type;
-		type = tp.aflag ? "async" : "sync";
+	if (strcmp("authenc", ciphers[id].name) == 0) {
+		tp.authflag = true;
+	}
 
-		fprintf(stderr, "Testing %s %s:\n", type, ciphers[id].name);
+	if (!tp.mflag) {
+		if (tp.authflag) {
+			fprintf(stderr, "Testing %s:\n", ciphers[id].name);
+		} else {
+			char *type;
+			type = tp.aflag ? "async" : "sync";
+
+			fprintf(stderr, "Testing %s %s:\n", type, ciphers[id].name);
+		}
 	}
 	err = ciphers[id].func(fdc, tp);
 
 	close(fdc);
 	close(fd);
+
+	return err;
+}
+
+static int start_test (int fdc, struct test_params tp, struct session_op *sess)
+{
+	int err;
+
+	if (tp.authflag) {
+		err = encrypt_auth(fdc, tp, sess);
+	} else {
+		if (tp.aflag) {
+			err = encrypt_async(fdc, tp, sess);
+		} else {
+			err = encrypt_sync(fdc, tp, sess);
+		}
+	}
 
 	return err;
 }
@@ -346,11 +454,7 @@ void do_test_vectors(int fdc, struct test_params tp, struct session_op *sess)
 	int err;
 
 	if (tp.nflag) {
-		if (tp.aflag) {
-			encrypt_async(fdc, tp, sess);
-		} else {
-			encrypt_sync(fdc, tp, sess);
-		}
+		err = start_test(fdc, tp, sess);
 	} else {
 		for (i = 256; i <= (64 * 1024); i *= 2) {
 			if (must_exit) {
@@ -358,11 +462,7 @@ void do_test_vectors(int fdc, struct test_params tp, struct session_op *sess)
 			}
 
 			tp.nvalue = i;
-			if (tp.aflag) {
-				err = encrypt_async(fdc, tp, sess);
-			} else {
-				err = encrypt_sync(fdc, tp, sess);
-			}
+			err = start_test(fdc, tp, sess);
 
 			if (err != 0) {
 				break;
@@ -474,6 +574,30 @@ int run_sha256(int fdc, struct test_params tp)
 	return 0;
 }
 
+int run_authenc(int fdc, struct test_params tp)
+{
+	struct session_op sess;
+	char *mkeybuf = "\x00\x00\x00\x00\x00\x00\x00\x00"
+		          "\x00\x00\x00\x00\x00\x00\x00\x00"
+		          "\x00\x00\x00\x00";
+	char *ckeybuf = "\x06\xa9\x21\x40\x36\xb8\xa1\x5b"
+		          "\x51\x2e\x03\xd5\x34\x12\x00\x06";
+
+	memset(&sess, 0, sizeof(sess));
+	sess.cipher = CRYPTO_AUTHENC_HMAC_SHA1_CBC_AES;
+	sess.keylen = 16;
+	sess.key = (unsigned char *)ckeybuf;
+	sess.mackeylen = 20;
+	sess.mackey = (unsigned char *)mkeybuf;
+	if (ioctl(fdc, CIOCGSESSION, &sess)) {
+		perror("ioctl(CIOCGSESSION)");
+		return -EINVAL;
+	}
+
+	do_test_vectors(fdc, tp, &sess);
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	int err = 0;
@@ -487,6 +611,7 @@ int main(int argc, char **argv)
 	tp.nflag = false;
 	tp.mflag = false;
 	tp.aflag = false;
+	tp.authflag = false;
 	alg_flag = false;
 	opterr = 0;
 	while ((c = getopt(argc, argv, "ahn:t:m")) != -1) {
