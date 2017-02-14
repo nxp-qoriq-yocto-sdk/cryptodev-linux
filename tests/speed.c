@@ -276,7 +276,7 @@ static int encrypt_sync(int fdc, struct test_params tp, struct session_op *sess)
 	}
 	memset(buffer, val++, tp.nvalue);
 
-	must_finish = 1;
+	must_finish = 0;
 	alarm(tp.tvalue);
 
 	gettimeofday(&start, NULL);
