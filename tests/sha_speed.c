@@ -1,6 +1,7 @@
 /*  sha_speed - simple SHA benchmark tool for cryptodev
  *
  *    Copyright (C) 2011 by Phil Sutter <phil.sutter@viprinet.com>
+ *    Copyright 2016 NXP
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

@@ -4,6 +4,7 @@
  * Copyright (c) 2009-2013 Nikos Mavrogiannopoulos <nmav@gnutls.org>
  * Copyright (c) 2010 Phil Sutter
  * Copyright (c) 2011, 2012 OpenSSL Software Foundation, Inc.
+ * Copyright 2017 NXP
  *
  * This file is part of linux cryptodev.
  *
